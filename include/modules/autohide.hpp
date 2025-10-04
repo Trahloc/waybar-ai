@@ -1,0 +1,58 @@
+#pragma once
+
+#include "AModule.hpp"
+#include "bar.hpp"
+#include "modules/hyprland/backend.hpp"
+#include <thread>
+#include <atomic>
+#include <chrono>
+
+namespace waybar::modules {
+
+class Autohide : public AModule, public waybar::modules::hyprland::EventHandler {
+ public:
+  Autohide(const std::string& id, const Bar& bar, const Json::Value& config);
+  ~Autohide();
+
+ private:
+  void startMouseTracking();
+  void stopMouseTracking();
+  void mouseTrackingThread();
+  void checkMousePosition();
+  bool getMousePosition(int& x, int& y);
+  void update() override;  // Called on main thread via dp.emit()
+  void onEvent(const std::string& ev) override;  // Handle Hyprland events
+
+  const Json::Value& config_;
+  Bar* bar_;
+  waybar::modules::hyprland::IPC& m_ipc;
+
+  // Configuration
+  uint32_t threshold_hidden_y_;
+  uint32_t threshold_visible_y_;
+  uint32_t delay_show_;
+  uint32_t delay_hide_;
+  uint32_t check_interval_;
+
+  // State machine - only one state can be true at any time
+  enum class WaybarState {
+    VISIBLE,           // Waybar is currently visible
+    HIDDEN,            // Waybar is currently hidden
+    PENDING_VISIBLE,   // Waybar is hidden but show timer is running
+    PENDING_HIDDEN     // Waybar is visible but hide timer is running
+  };
+
+  std::atomic<WaybarState> waybar_state_;
+  std::chrono::steady_clock::time_point timer_start_;
+
+  // Threading
+  std::thread mouse_thread_;
+  std::atomic<bool> mouse_thread_running_;
+  std::atomic<bool> mouse_thread_exit_;
+
+
+  // Two-consecutive-events requirement for show trigger
+  bool last_trigger_was_show_ = false;
+};
+
+}  // namespace waybar::modules

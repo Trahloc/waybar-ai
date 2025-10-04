@@ -122,6 +122,7 @@
 #include "modules/image.hpp"
 #include "modules/temperature.hpp"
 #include "modules/user.hpp"
+#include "modules/autohide.hpp"
 
 waybar::Factory::Factory(const Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
 
@@ -364,6 +365,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
     }
     if (ref.compare(0, 5, "cffi/") == 0 && ref.size() > 5) {
       return new waybar::modules::CFFI(ref.substr(5), id, config_[name]);
+    }
+    if (ref == "autohide") {
+      return new waybar::modules::Autohide(id, bar_, config_[name]);
     }
   } catch (const std::exception& e) {
     auto err = fmt::format("Disabling module \"{}\", {}", name, e.what());
