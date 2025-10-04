@@ -719,6 +719,23 @@ auto Workspaces::populateWindowRewriteConfig(const Json::Value &config) -> void 
       [this](std::string &window_rule) { return windowRewritePriorityFunction(window_rule); });
 }
 
+/**
+ * @brief Load and apply the "workspace-taskbar" configuration section to module members.
+ *
+ * Reads the "workspace-taskbar" object from the provided JSON config and populates
+ * taskbar-related settings on the Workspaces instance, including enablement,
+ * update behavior for the active window, reverse-direction flag, item format
+ * (title/icon placement), custom icon themes, icon size, orientation, click
+ * action, ignore-list regexes, and active-window-position.
+ *
+ * Invalid entries are handled gracefully:
+ * - If "workspace-taskbar" is missing or not an object, defaults are retained.
+ * - Invalid regexes in "ignore-list" are logged and skipped.
+ * - Unrecognized string values for "active-window-position" are logged and
+ *   cause the position to fall back to ActiveWindowPosition::NONE.
+ *
+ * @param config The root JSON configuration object to read from.
+ */
 auto Workspaces::populateWorkspaceTaskbarConfig(const Json::Value &config) -> void {
   const auto &workspaceTaskbar = config["workspace-taskbar"];
   if (!workspaceTaskbar.isObject()) {
@@ -790,6 +807,14 @@ auto Workspaces::populateWorkspaceTaskbarConfig(const Json::Value &config) -> vo
   }
 }
 
+/**
+ * @brief Register a window creation payload as an orphan keyed by its address.
+ *
+ * If the provided payload is not empty, store its representation in the orphan map
+ * using the window address as the key.
+ *
+ * @param create_window_payload Payload containing the window creation information to register as an orphan.
+ */
 void Workspaces::registerOrphanWindow(WindowCreationPayload create_window_payload) {
   if (!create_window_payload.isEmpty(*this)) {
     m_orphanWindowMap[create_window_payload.getAddress()] = create_window_payload.repr(*this);
@@ -1138,6 +1163,15 @@ std::tuple<std::string, std::string, std::string> Workspaces::splitTriplePayload
   return {part1, part2, part3};
 }
 
+/**
+ * @brief Parse a workspace identifier string into an integer workspace id.
+ *
+ * Accepts a numeric string (returns its integer value) or the literal "special"
+ * (returns -99). Returns no value when the input cannot be parsed as an id.
+ *
+ * @param workspaceIdStr Workspace identifier string to parse; expected to be a decimal number or "special".
+ * @return std::optional<int> Parsed workspace id, `-99` for "special", or `std::nullopt` if parsing fails.
+ */
 std::optional<int> Workspaces::parseWorkspaceId(std::string const &workspaceIdStr) {
   try {
     return workspaceIdStr == "special" ? -99 : std::stoi(workspaceIdStr);

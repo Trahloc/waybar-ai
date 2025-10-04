@@ -10,6 +10,25 @@
 
 namespace waybar {
 
+/**
+ * @brief Create and configure an ALabel module from JSON configuration and provided defaults.
+ *
+ * Constructs the ALabel, initializes its displayed format, update interval, widget styling,
+ * sizing/ellipsizing, rotation/alignment, optional GTK menu and menu actions, and registers
+ * click/scroll enablement according to the given configuration and parameters.
+ *
+ * @param config JSON configuration that can override defaults (format, interval, max/min length,
+ *               rotate, align, menu, menu-actions, justify, etc.).
+ * @param name Module name; also set as the label widget name.
+ * @param id Optional style id; when non-empty it is added as a CSS class to the label.
+ * @param format Default format string used when config[\"format\"] is not provided.
+ * @param interval Fallback update interval in seconds used only if config[\"interval\"] is not numeric;
+ *                 note that configured intervals (and this fallback) are normalized to milliseconds
+ *                 internally with a minimum granularity of 1 ms.
+ * @param ellipsize When true, enable end ellipsizing and single-line mode if max-length is not set.
+ * @param enable_click When true, enable click handling for the module (influences base class flags).
+ * @param enable_scroll When true, enable scroll handling for the module (influences base class flags).
+ */
 ALabel::ALabel(const Json::Value& config, const std::string& name, const std::string& id,
                const std::string& format, uint16_t interval, bool ellipsize, bool enable_click,
                bool enable_scroll)

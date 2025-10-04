@@ -43,12 +43,25 @@ std::filesystem::path IPC::getSocketFolder(const char* instanceSig) {
   return socketFolder_;
 }
 
+/**
+ * @brief Initialize IPC and start the background listener.
+ *
+ * Starts a separate thread that listens for Hyprland IPC events and relays them to the module's event dispatcher, and records the current process ID as the socket owner.
+ */
 IPC::IPC() {
   // will start IPC and relay events to parseIPC
   ipcThread_ = std::thread([this]() { socketListener(); });
   socketOwnerPid_ = getpid();
 }
 
+/**
+ * @brief Gracefully stops the Hyprland IPC listener and cleans up resources when the IPC instance is destroyed.
+ *
+ * If the current process is the original IPC owner (the PID recorded at construction),
+ * this destructor signals the listener thread to stop, logs shutdown progress, closes the IPC socket if open,
+ * and joins the background thread. If the current PID differs from the recorded owner PID, the destructor returns
+ * immediately and performs no shutdown actions.
+ */
 IPC::~IPC() {
   // Do no stop Hyprland IPC if a child process (with successful fork() but
   // failed exec()) exits.

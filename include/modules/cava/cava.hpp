@@ -8,7 +8,12 @@ namespace waybar::modules::cava {
 class Cava final : public ALabel, public sigc::trackable {
  public:
   Cava(const std::string&, const Json::Value&);
-  ~Cava() = default;
+  /**
+ * @brief Default destructor.
+ *
+ * Releases resources held by the Cava instance.
+ */
+~Cava() = default;
   auto onUpdate(const std::string& input) -> void;
   auto onSilence() -> void;
   auto doAction(const std::string& name) -> void override;

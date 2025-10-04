@@ -63,6 +63,19 @@ void waybar::modules::Custom::delayWorker() {
   };
 }
 
+/**
+ * @brief Launches and monitors a long-running external command, streaming its output into the module.
+ *
+ * Starts the configured command from `config_["exec"]`, stores the child PID in `pid_` and the opened
+ * FILE pointer in `fp_`, and installs a worker in `thread_` that reads the command's stdout line by
+ * line. Each successfully read line becomes the module's output (stored in `output_.second`) and
+ * triggers an update signal. If the process ends with a non-zero exit status, `output_.first` is set
+ * to that exit code and an update is emitted. If `config_["restart-interval"]` is numeric, the worker
+ * waits that many seconds (converted to milliseconds, minimum 1 ms) and re-launches the command;
+ * otherwise the worker stops. The function throws `std::runtime_error` if the command cannot be opened.
+ *
+ * @throws std::runtime_error If opening the command pipe fails.
+ */
 void waybar::modules::Custom::continuousWorker() {
   auto cmd = config_["exec"].asString();
   pid_ = -1;

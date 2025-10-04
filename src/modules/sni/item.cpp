@@ -37,6 +37,20 @@ namespace waybar::modules::SNI {
 static const Glib::ustring SNI_INTERFACE_NAME = sn_item_interface_info()->name;
 static const unsigned UPDATE_DEBOUNCE_TIME = 10;
 
+/**
+ * @brief Construct an SNI Item and initialize its UI and DBus proxy.
+ *
+ * Initializes the item state (bus name, object path, icon theme and sizes),
+ * reads relevant keys from the provided JSON configuration, configures GTK
+ * event handling and initial visibility, creates a cancellable, and begins
+ * asynchronous creation of the DBus proxy for the Status Notifier Item.
+ *
+ * @param bn D-Bus bus name for the status notifier item.
+ * @param op Object path of the status notifier item on the bus.
+ * @param config JSON configuration that may contain "icon-size", "smooth-scrolling-threshold",
+ *               and "show-passive-items" to override defaults.
+ * @param bar Reference to the Bar that owns this item (used for window and coordinate context).
+ */
 Item::Item(const std::string& bn, const std::string& op, const Json::Value& config, const Bar& bar)
     : bus_name(bn),
       object_path(op),
@@ -74,6 +88,11 @@ Item::Item(const std::string& bn, const std::string& op, const Json::Value& conf
                                    cancellable_, interface);
 }
 
+/**
+ * @brief Closes and detaches the associated GTK menu if one exists.
+ *
+ * Ensures that an attached GTK menu is popped down and detached during object destruction to avoid leaving a lingering menu.
+ */
 Item::~Item() {
   if (this->gtk_menu != nullptr) {
     this->gtk_menu->popdown();
@@ -81,6 +100,12 @@ Item::~Item() {
   }
 }
 
+/**
+ * @brief Set the event box to the prelight (hover) visual state when the pointer enters.
+ *
+ * @param e Pointer crossing event (unused).
+ * @return bool `false` to allow further event propagation.
+ */
 bool Item::handleMouseEnter(GdkEventCrossing* const& e) {
   event_box.set_state_flags(Gtk::StateFlags::STATE_FLAG_PRELIGHT);
   return false;
@@ -440,6 +465,15 @@ void Item::onMenuDestroyed(Item* self, GObject* old_menu_pointer) {
   }
 }
 
+/**
+ * @brief Create and attach a GTK menu for this item from its D-Bus menu description.
+ *
+ * If a menu description string is present and no GTK menu exists, constructs a GTK menu
+ * backed by the item's D-Bus menu, retains and weakly references the native menu object,
+ * and attaches the resulting GTK menu to the item's event box. Always clears the event
+ * box prelight (hover) state so the item does not remain visually hovered when the menu
+ * becomes focused.
+ */
 void Item::makeMenu() {
   if (gtk_menu == nullptr && !menu.empty()) {
     dbus_menu = dbusmenu_gtkmenu_new(bus_name.data(), menu.data());
@@ -455,6 +489,15 @@ void Item::makeMenu() {
   event_box.unset_state_flags(Gtk::StateFlags::STATE_FLAG_PRELIGHT);
 }
 
+/**
+ * @brief Handle mouse button events for the tray item.
+ *
+ * Processes left/middle/right clicks and shows a menu or invokes the corresponding
+ * D-Bus action on the status notifier item.
+ *
+ * @param ev Pointer to the GDK button event describing the click (coordinates and button).
+ * @return true if the event was handled (menu shown or a DBus method invoked), false otherwise.
+ */
 bool Item::handleClick(GdkEventButton* const& ev) {
   auto parameters = Glib::VariantContainerBase::create_tuple(
       {Glib::Variant<int>::create(ev->x_root + bar_.x_global),

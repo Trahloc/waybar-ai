@@ -11,6 +11,15 @@
 
 namespace waybar::modules {
 
+/**
+ * @brief Initialize Autohide module: configure thresholds/delays, register IPC events, and start mouse tracking.
+ *
+ * Constructs an Autohide instance for the given bar using the provided configuration. Reads threshold and timing options from `config` (falling back to sensible defaults), marks Hyprland modules as ready for IPC, registers for `workspacev2` and `focusedmonv2` events, and launches the background mouse-tracking thread that drives autohide behavior.
+ *
+ * @param id Module identifier.
+ * @param bar Reference to the Bar this module controls.
+ * @param config JSON configuration used to set thresholds, delays, and the mouse check interval.
+ */
 Autohide::Autohide(const std::string& id, const Bar& bar, const Json::Value& config)
     : AModule(config, "autohide", id, false, false),
       config_(config),
@@ -49,11 +58,23 @@ Autohide::Autohide(const std::string& id, const Bar& bar, const Json::Value& con
   startMouseTracking();
 }
 
+/**
+ * @brief Cleanly shuts down autohide by stopping the background mouse-tracking and unregistering from IPC.
+ *
+ * Ensures the mouse-tracking thread is stopped before removing IPC callbacks to avoid races with incoming events.
+ */
 Autohide::~Autohide() {
   stopMouseTracking();
   m_ipc.unregisterForIPC(this);
 }
 
+/**
+ * @brief Start background mouse-tracking for autohide behavior.
+ *
+ * If tracking is already running this is a no-op. Otherwise this resets the exit
+ * flag, spawns the background thread that polls the cursor position, and marks
+ * tracking as running.
+ */
 void Autohide::startMouseTracking() {
   if (mouse_thread_running_.load()) {
     return;
@@ -65,6 +86,12 @@ void Autohide::startMouseTracking() {
   mouse_thread_running_.store(true);
 }
 
+/**
+ * @brief Stops the background mouse-tracking thread and waits for it to exit.
+ *
+ * If tracking is not running this is a no-op. Signals the tracking thread to exit,
+ * joins it if joinable, and updates the internal running flag.
+ */
 void Autohide::stopMouseTracking() {
   if (!mouse_thread_running_.load()) {
     return;
@@ -79,6 +106,12 @@ void Autohide::stopMouseTracking() {
   mouse_thread_running_.store(false);
 }
 
+/**
+ * @brief Background thread entry that periodically polls the mouse position.
+ *
+ * Runs until the internal exit flag is set, invoking checkMousePosition() at
+ * regular intervals determined by `check_interval_`.
+ */
 void Autohide::mouseTrackingThread() {
   spdlog::debug("Autohide: Mouse tracking thread started");
 
@@ -93,6 +126,20 @@ void Autohide::mouseTrackingThread() {
   spdlog::debug("Autohide: Mouse tracking thread stopped");
 }
 
+/**
+ * @brief Update autohide state based on the cursor position on the bar's monitor.
+ *
+ * Checks the current cursor position and, if the cursor is on the same monitor as the bar,
+ * converts it to monitor-relative coordinates and updates the module's autohide state.
+ * - A cursor at or above `threshold_hidden_y_` is treated as a top "show" trigger (requires
+ *   two consecutive top triggers to schedule a show).
+ * - A cursor below `threshold_visible_y_` is treated as a "hide" trigger and schedules a hide.
+ * Pending transitions are timed using `delay_show_` / `delay_hide_` (minimum 10 ms); when a
+ * pending transition elapses the state becomes `VISIBLE` or `HIDDEN` and `dp.emit()` is invoked.
+ *
+ * If the cursor position cannot be obtained or the cursor is not on the bar's monitor, no state
+ * changes or events are performed.
+ */
 void Autohide::checkMousePosition() {
   int mouse_x, mouse_y;
 
@@ -199,6 +246,17 @@ void Autohide::checkMousePosition() {
   }
 }
 
+/**
+ * @brief Retrieves the global cursor position from Hyprland IPC.
+ *
+ * Queries the Hyprland IPC "cursorpos" endpoint and parses the response into
+ * integer screen coordinates.
+ *
+ * @param[out] x Global X coordinate of the cursor on success.
+ * @param[out] y Global Y coordinate of the cursor on success.
+ * @return true if the cursor position was successfully obtained and parsed;
+ *         false otherwise.
+ */
 bool Autohide::getMousePosition(int& x, int& y) {
   // Use Hyprland IPC to get global cursor position
   try {
@@ -222,6 +280,14 @@ bool Autohide::getMousePosition(int& x, int& y) {
   }
 }
 
+/**
+ * @brief Apply the current autohide state to the associated bar's visibility.
+ *
+ * Sets the bar's mode to Bar::MODE_DEFAULT when the state is VISIBLE or PENDING_HIDDEN,
+ * and to Bar::MODE_INVISIBLE when the state is HIDDEN or PENDING_VISIBLE.
+ *
+ * @note This method runs on the main thread and is safe to perform GTK operations.
+ */
 void Autohide::update() {
   // This method runs on the main thread, so it's safe to call GTK operations
   if (!bar_) {
@@ -241,6 +307,14 @@ void Autohide::update() {
   }
 }
 
+/**
+ * @brief Handle IPC events and force the bar visible on workspace or monitor changes.
+ *
+ * When the event name is "workspacev2" or "focusedmonv2", sets the autohide state to VISIBLE
+ * and emits the dispatcher so update() runs on the main thread.
+ *
+ * @param ev Raw event string; the event name is taken as the substring before the first '>' if present.
+ */
 void Autohide::onEvent(const std::string& ev) {
   std::string eventName;
   size_t pos = ev.find_first_of('>');

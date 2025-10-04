@@ -369,6 +369,12 @@ Workspace::Workspace(const Json::Value &config, WorkspaceManager &manager,
   button_.add(content_);
 }
 
+/**
+ * @brief Destroy the Workspace and release its protocol resources.
+ *
+ * If the Workspace holds a Wayland ext workspace handle, that handle is destroyed
+ * to free associated protocol resources.
+ */
 Workspace::~Workspace() {
   if (ext_handle_ != nullptr) {
     ext_workspace_handle_v1_destroy(ext_handle_);
@@ -376,6 +382,13 @@ Workspace::~Workspace() {
   spdlog::debug("[ext/workspaces]: Workspace {} destroyed", id_);
 }
 
+/**
+ * @brief Update the workspace button's visibility, style classes, and label to reflect the workspace's current state.
+ *
+ * Applies style classes "active", "urgent", and "hidden" based on the workspace state flags, sets the button's visibility
+ * according to those flags and the workspace configuration flags `active_only_` and `ignore_hidden_`, and updates the
+ * button label by formatting `format_` with the workspace name, id, and optional icon.
+ */
 void Workspace::update() {
   const auto style_context = button_.get_style_context();
 
@@ -413,25 +426,64 @@ void Workspace::update() {
                                 fmt::arg("icon", with_icon_ ? icon() : "")));
 }
 
+/**
+ * @brief Update the workspace's identifier and request a resort of workspaces.
+ *
+ * Stores the new workspace id and signals the manager that workspace ordering may need recomputing.
+ *
+ * @param id The new identifier for this workspace.
+ */
 void Workspace::handle_id(const std::string &id) {
   spdlog::debug("[ext/workspaces]:     ID for workspace {}: {}", id_, id);
   workspace_id_ = id;
   workspace_manager_.set_needs_sorting();
 }
 
+/**
+ * @brief Update the workspace's display name and request a resort.
+ *
+ * Stores the provided name for this workspace and marks the workspace manager
+ * as needing to re-sort workspaces on the next update.
+ *
+ * @param name New workspace name.
+ */
 void Workspace::handle_name(const std::string &name) {
   spdlog::debug("[ext/workspaces]:     Name for workspace {}: {}", id_, name);
   name_ = name;
   workspace_manager_.set_needs_sorting();
 }
 
+/**
+ * @brief Store updated coordinates for the workspace and request a resort.
+ *
+ * Stores the provided coordinate list for this workspace and signals the
+ * WorkspaceManager that workspace ordering may need to be recomputed.
+ *
+ * @param coordinates Ordered list of unsigned integer coordinates associated with the workspace.
+ */
 void Workspace::handle_coordinates(const std::vector<uint32_t> &coordinates) {
   coordinates_ = coordinates;
   workspace_manager_.set_needs_sorting();
 }
 
+/**
+ * @brief Update the workspace's state bitmask.
+ *
+ * Stores the provided protocol `state` flags (e.g., active, urgent, hidden) on the workspace.
+ *
+ * @param state Bitmask of workspace state flags from the compositor/protocol.
+ */
 void Workspace::handle_state(uint32_t state) { state_ = state; }
 
+/**
+ * @brief Logs which workspace actions are supported by this workspace handle.
+ *
+ * Examines the provided capability bitmask and emits debug logs for each supported
+ * action such as activate, deactivate, remove, and assign.
+ *
+ * @param capabilities Bitmask of EXT_WORKSPACE_HANDLE_V1_WORKSPACE_CAPABILITIES_* flags
+ *        indicating which operations (activate, deactivate, remove, assign) are supported.
+ */
 void Workspace::handle_capabilities(uint32_t capabilities) {
   spdlog::debug("[ext/workspaces]:     Capabilities for workspace {}:", id_);
   if ((capabilities & EXT_WORKSPACE_HANDLE_V1_WORKSPACE_CAPABILITIES_ACTIVATE) == capabilities) {
@@ -448,11 +500,26 @@ void Workspace::handle_capabilities(uint32_t capabilities) {
   }
 }
 
+/**
+ * @brief Handle notification that this workspace was removed by the compositor.
+ *
+ * Informs the WorkspaceManager to remove the workspace identified by this object's id.
+ */
 void Workspace::handle_removed() {
   spdlog::debug("[ext/workspaces]: Removing workspace {}", id_);
   workspace_manager_.remove_workspace(id_);
 }
 
+/**
+ * @brief Handle a mouse click on the workspace button and perform the configured action.
+ *
+ * Selects the action string configured for the pressed mouse button (primary, middle, secondary)
+ * and, if non-empty, performs the corresponding workspace operation (`activate`, `deactivate`, or `close`).
+ * Unknown actions are logged as a warning. The workspace manager is committed after issuing the action.
+ *
+ * @param button The pointer to the GdkEventButton describing which mouse button was pressed.
+ * @return bool `true` always.
+ */
 bool Workspace::handle_clicked(const GdkEventButton *button) const {
   std::string action;
   if (button->button == GDK_BUTTON_PRIMARY) {

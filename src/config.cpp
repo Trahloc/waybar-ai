@@ -85,6 +85,20 @@ std::optional<std::string> Config::findConfigPath(const std::vector<std::string>
   return std::nullopt;
 }
 
+/**
+ * @brief Loads, resolves includes, and merges a configuration file into an existing JSON value.
+ *
+ * Reads the JSON configuration from the specified file, resolves any included configuration
+ * entries (recursively, up to the configured depth limit), and merges the resulting configuration
+ * into the provided destination JSON value.
+ *
+ * @param dst JSON value to merge the parsed configuration into; may be modified.
+ * @param config_file Path to the configuration file to read and process.
+ * @param depth Current recursion depth for include resolution; used to prevent infinite recursion.
+ *
+ * @throws std::runtime_error If recursion depth exceeds 100 (likely recursive includes).
+ * @throws std::runtime_error If the specified configuration file cannot be opened.
+ */
 void Config::setupConfig(Json::Value &dst, const std::string &config_file, int depth) {
   if (depth > 100) {
     throw std::runtime_error("Aborting due to likely recursive include in config files");
@@ -106,6 +120,15 @@ void Config::setupConfig(Json::Value &dst, const std::string &config_file, int d
   mergeConfig(dst, tmp_config);
 }
 
+/**
+ * @brief Locate one or more filesystem paths matching an include name.
+ *
+ * Expands the provided include name against several locations and returns every existing expanded path found.
+ *
+ * @param name Include name or path to resolve; may be a relative or glob-like pattern.
+ * @param dirs Additional directories to search for matches, checked in order.
+ * @return std::vector<std::string> Vector of filesystem paths that exist and match the given include name (may be empty).
+ */
 std::vector<std::string> Config::findIncludePath(const std::string &name,
                                                  const std::vector<std::string> &dirs) {
   std::vector<std::string> matches;
@@ -133,6 +156,16 @@ std::vector<std::string> Config::findIncludePath(const std::string &name,
   return matches;
 }
 
+/**
+ * @brief Resolve and load "include" entries within a JSON configuration object.
+ *
+ * Processes the config["include"] field (either a string or an array of strings), locates matching
+ * resource files for each entry, and loads each matched file into the provided config object.
+ * If no matches are found for an entry, a warning is emitted.
+ *
+ * @param config JSON configuration value to process; included files are merged into this object.
+ * @param depth Current include recursion depth (used to detect and limit recursive includes).
+ */
 void Config::resolveConfigIncludes(Json::Value &config, int depth) {
   Json::Value includes = config["include"];
   if (includes.isArray()) {

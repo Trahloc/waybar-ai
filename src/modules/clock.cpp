@@ -20,6 +20,21 @@
 using namespace date;
 namespace fmt_lib = waybar::util::date::format;
 
+/**
+ * @brief Construct a Clock module configured from JSON.
+ *
+ * Initializes the clock label, locale, tooltip and calendar settings, builds the list
+ * of timezones to display, and starts the internal update thread used to refresh the
+ * displayed time and tooltip content.
+ *
+ * The constructor parses tooltip and calendar-related configuration (including calendar
+ * mode, ISO-8601 week handling, week-number placement, per-section formats, column
+ * layout and scroll behavior) and populates internal caches and state used by the
+ * module at runtime.
+ *
+ * @param id Identifier for the module instance.
+ * @param config JSON object containing the module configuration.
+ */
 waybar::modules::Clock::Clock(const std::string& id, const Json::Value& config)
     : ALabel(config, "clock", id, "{:%H:%M}", 60, false, false, true),
       m_locale_{std::locale(config_["locale"].isString() ? config_["locale"].asString() : "")},
@@ -192,6 +207,18 @@ auto waybar::modules::Clock::update() -> void {
   ALabel::update();
 }
 
+/**
+ * @brief Build a multiline representation of configured timezones for the tooltip.
+ *
+ * Produces a newline-separated list of formatted date/time strings, one per configured
+ * timezone (excluding the local zone). If a custom timezone-tooltip format is set it is
+ * used for each entry; otherwise the module's main format is used. The current timezone
+ * entry is omitted unless a timezone-tooltip format is specified.
+ *
+ * @param now Current wall-clock time used to render each timezone entry.
+ * @return std::string Multiline formatted timezone text. Returns an empty string when
+ * only one timezone is configured.
+ */
 auto waybar::modules::Clock::getTZtext(sys_seconds now) -> std::string {
   if (tzList_.size() == 1) return "";
 
@@ -225,6 +252,19 @@ const unsigned cldRowsInMonth(const year_month& ym, const weekday& firstdow) {
   return 2u + ceil<weeks>((weekday{ym / 1} - firstdow) + ((ym / last).day() - day{0})).count();
 }
 
+/**
+ * @brief Maps a calendar line index to the corresponding week within a month.
+ *
+ * Given a month and the configured first day of week, returns the year_month_weekday
+ * that represents the week displayed on the specified calendar line. Lines 0 and 1
+ * are reserved for the month title and weekday headers; line 2 corresponds to the
+ * first week row, line 3 to the second, and so on.
+ *
+ * @param ym The target year and month.
+ * @param firstdow The first day of the week to use for week alignment.
+ * @param line The calendar line index (line >= 2 selects a week row).
+ * @return year_month_weekday The year/month/weekday indexed value for the requested week.
+ */
 auto cldGetWeekForLine(const year_month& ym, const weekday& firstdow, const unsigned line)
     -> const year_month_weekday {
   const unsigned idx = line - 2;
@@ -234,6 +274,24 @@ auto cldGetWeekForLine(const year_month& ym, const weekday& firstdow, const unsi
   return ym / indexed_first_day_of_week;
 }
 
+/**
+ * @brief Build a single textual line for a month calendar block.
+ *
+ * Produces one line of a locale-aware, fixed-width calendar for the month represented by `ym`.
+ * The produced line uses "{today}" as a placeholder where the day equals `currDate`.
+ * Line meanings:
+ * - 0: month and year title (e.g., "March 2025").
+ * - 1: abbreviated weekday names starting at `firstdow`.
+ * - 2: the first week of the month, padded to align with `firstdow`.
+ * - >=3: subsequent week rows for the month, padded to a fixed width when the week is incomplete.
+ *
+ * @param currDate The current date used to mark the "{today}" placeholder.
+ * @param ym The year-month whose calendar lines are being generated.
+ * @param line Zero-based index of the line to generate within the month block.
+ * @param firstdow Weekday that should appear as the first column in the week rows.
+ * @param m_locale_ Pointer to the locale used for month and weekday formatting; may be null only if locale formatting is not required.
+ * @return std::string A single formatted calendar line for the requested `line` index (may contain the "{today}" token).
+ */
 auto getCalendarLine(const year_month_day& currDate, const year_month ym, const unsigned line,
                      const weekday& firstdow, const std::locale* const m_locale_) -> std::string {
   std::ostringstream os;
@@ -317,6 +375,22 @@ auto getCalendarLine(const year_month_day& currDate, const year_month ym, const 
   return os.str();
 }
 
+/**
+ * @brief Render a formatted calendar block for the given target date.
+ *
+ * Builds a multi-line calendar string for the month or year containing the provided
+ * target date according to the clock module's calendar configuration (mode, columns,
+ * week-number placement, locale, and formatting templates). The produced string may
+ * include a special "{today}" placeholder already replaced with the formatted `today` value.
+ *
+ * @param today The current date used to mark "today" inside the rendered calendar.
+ * @param ymd The target date whose month or year is rendered.
+ * @param tz Time zone used for week-number calculations and any timezone-aware formatting; may be nullptr to use the local zone.
+ * @return const std::string The rendered calendar as a multi-line string.
+ *
+ * @note The function updates internal month/year caches so repeated calls with the same
+ *       target and base day may return a cached string instead of rebuilding the calendar.
+ */
 auto waybar::modules::Clock::get_calendar(const year_month_day& today, const year_month_day& ymd,
                                           const time_zone* tz) -> const std::string {
   const auto firstdow{first_day_of_week()};
@@ -505,7 +579,15 @@ template <typename T, auto fn>
 using deleting_unique_ptr = std::unique_ptr<T, deleter_from_fn<fn>>;
 #endif
 
-// Computations done similarly to Linux cal utility.
+/**
+ * @brief Determine the first weekday to use for calendar rendering.
+ *
+ * Chooses Monday when ISO-8601 mode is enabled, otherwise attempts to derive
+ * the locale-specific first weekday from the configured locale; if that
+ * information is unavailable, falls back to Sunday.
+ *
+ * @return weekday The weekday value representing the first day of the week.
+ */
 auto waybar::modules::Clock::first_day_of_week() -> weekday {
   if (iso8601Calendar_) {
     return Monday;

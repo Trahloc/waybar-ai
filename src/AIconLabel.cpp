@@ -5,6 +5,31 @@
 
 namespace waybar {
 
+/**
+ * @brief Construct an icon+label widget configured from JSON.
+ *
+ * Configures widget styling, orientation, spacing, and child order based on the
+ * provided configuration and parameters. The constructor:
+ * - Moves module/style classes from the internal label to the outer box and,
+ *   if `id` is non-empty, applies `id` as a style class to the box.
+ * - Reads `config["rotate"]` to determine orientation (accepted values are
+ *   multiples of 90 degrees; other values are treated as 0). Rotation affects
+ *   whether the box is horizontal or vertical.
+ * - Reads `config["icon-spacing"]` (defaults to 8) and applies it as spacing.
+ * - Handles `config["swap-icon-label"]`: accepts `null` (no-op), a boolean to
+ *   swap the order of icon and label, or logs a warning and uses the default
+ *   false for invalid types.
+ * - Orders the icon and label according to rotation and the swap flag, then
+ *   adds the composed box to the event container.
+ *
+ * @param config JSON configuration that may include:
+ *               - `rotate` (unsigned int, degrees; multiples of 90),
+ *               - `icon-spacing` (int, defaults to 8),
+ *               - `swap-icon-label` (bool or null),
+ *               - `icon` (bool to enable/disable icon visibility).
+ * @param name   Module name assigned to the outer box widget.
+ * @param id     Optional identifier used as a style class on the outer box.
+ */
 AIconLabel::AIconLabel(const Json::Value &config, const std::string &name, const std::string &id,
                        const std::string &format, uint16_t interval, bool ellipsize,
                        bool enable_click, bool enable_scroll)

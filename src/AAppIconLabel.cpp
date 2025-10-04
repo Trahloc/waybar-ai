@@ -57,6 +57,18 @@ std::optional<std::string> getFileBySuffix(const std::string& dir, const std::st
   return getFileBySuffix(dir, suffix, false);
 }
 
+/**
+ * Locate the .desktop file path for an application identifier by searching user and system data directories.
+ *
+ * Searches the applications/ subdirectories of the user's data dir first, then the system data dirs for a
+ * desktop file whose name ends with `<app_identifier>.desktop`. If not found and an alternative identifier is
+ * provided, the function repeats the search with the alternative identifier.
+ *
+ * @param app_identifier Primary application identifier (desktop entry name without the `.desktop` suffix).
+ * @param alternative_app_identifier Fallback application identifier to try if the primary identifier yields no match.
+ * @return std::optional<std::string> The filesystem path to the matching `.desktop` file, or an empty optional
+ *         if no matching file is found or if `app_identifier` is empty.
+ */
 std::optional<std::string> getDesktopFilePath(const std::string& app_identifier,
                                               const std::string& alternative_app_identifier) {
   if (app_identifier.empty()) {

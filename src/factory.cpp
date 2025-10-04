@@ -126,6 +126,18 @@
 
 waybar::Factory::Factory(const Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
 
+/**
+ * @brief Create a module instance from its configuration name and bar position.
+ *
+ * @param name Module key as specified in the configuration. May include an instance
+ *        identifier after a '#' (for example: "network#eth0"), or a prefixed path
+ *        for dynamic modules (for example: "custom/foo", "cffi/bar").
+ * @param pos Bar position string (e.g. "top", "bottom", or a layout-specific value)
+ *        used by modules that require positional context.
+ * @return waybar::AModule* Pointer to the newly constructed module.
+ * @throws std::runtime_error If the specified module name is unknown or if module
+ *         construction fails; the exception message contains the module name and reason.
+ */
 waybar::AModule* waybar::Factory::makeModule(const std::string& name,
                                              const std::string& pos) const {
   try {

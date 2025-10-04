@@ -81,6 +81,24 @@ static void handle_global_remove(void *data, struct wl_registry *registry, uint3
 static const wl_registry_listener registry_listener_impl = {.global = handle_global,
                                                             .global_remove = handle_global_remove};
 
+/**
+ * @brief Constructs a Tags module instance for the specified bar with the provided configuration.
+ *
+ * Initializes Wayland registry listeners, configures the module's UI container and tag buttons,
+ * and wires input handlers for tag activation and toggle according to configuration.
+ *
+ * The constructor logs an error if required River interfaces (status manager, control, or seat)
+ * are not advertised by the compositor. It determines the number of tags (defaults to 9,
+ * capped at 32), applies optional labels from `config["tag-labels"]`, and connects button
+ * click/press handlers unless `config["disable-click"]` is true. The UI container's show
+ * signal is connected to a handler that performs output-status initialization when the widget
+ * is shown.
+ *
+ * @param id Identifier used for styling the module.
+ * @param bar Reference to the Bar instance this module belongs to.
+ * @param config JSON configuration that may contain keys such as `num-tags`, `tag-labels`,
+ *               `set-tags`, `toggle-tags`, and `disable-click`.
+ */
 Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &config)
     : waybar::AModule(config, "tags", id, false, false),
       status_manager_{nullptr},
@@ -153,6 +171,12 @@ Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &con
   box_.signal_show().connect(sigc::mem_fun(*this, &Tags::handle_show));
 }
 
+/**
+ * @brief Destroys River-related Wayland resources held by the Tags module.
+ *
+ * Releases any owned zriver_output_status_v1, zriver_control_v1, and
+ * zriver_status_manager_v1 objects if they are present.
+ */
 Tags::~Tags() {
   if (output_status_) {
     zriver_output_status_v1_destroy(output_status_);
@@ -167,6 +191,13 @@ Tags::~Tags() {
   }
 }
 
+/**
+ * @brief Initialize River output status for the module when shown and attach its listener.
+ *
+ * Sets up the river output status for the bar's monitor and registers the output status listener.
+ * If the output status is already initialized the call is a no-op. If the status manager is not
+ * available a warning is logged and initialization is skipped.
+ */
 void Tags::handle_show() {
   if (output_status_ != nullptr) {
     return;
@@ -184,6 +215,14 @@ void Tags::handle_show() {
   status_manager_ = nullptr;
 }
 
+/**
+ * @brief Selects the specified tag in River in response to a primary (left) click.
+ *
+ * Sends a River command to set the focused tags to the provided tag value and
+ * attaches the command callback listener to observe the command result.
+ *
+ * @param tag Numeric tag identifier expected by River (e.g., a tag index or bitmask value).
+ */
 void Tags::handle_primary_clicked(uint32_t tag) {
   // Send river command to select tag on left mouse click
   zriver_command_callback_v1 *callback;

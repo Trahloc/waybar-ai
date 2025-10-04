@@ -48,18 +48,59 @@ class Workspaces : public AModule, public EventHandler {
   auto formatBefore() const -> std::string { return m_formatBefore; }
   auto formatAfter() const -> std::string { return m_formatAfter; }
   auto taskbarFormatBefore() const -> std::string { return m_taskbarFormatBefore; }
-  auto taskbarFormatAfter() const -> std::string { return m_taskbarFormatAfter; }
-  auto taskbarIconSize() const -> int { return m_taskbarIconSize; }
-  auto taskbarOrientation() const -> Gtk::Orientation { return m_taskbarOrientation; }
-  auto taskbarReverseDirection() const -> bool { return m_taskbarReverseDirection; }
-  auto onClickWindow() const -> std::string { return m_onClickWindow; }
-  auto getIgnoredWindows() const -> std::vector<std::regex> { return m_ignoreWindows; }
+  /**
+ * @brief Gets the format string appended after taskbar content for each workspace entry.
+ *
+ * @return std::string The format appended after the taskbar rendering for a workspace.
+ */
+auto taskbarFormatAfter() const -> std::string { return m_taskbarFormatAfter; }
+  /**
+ * @brief Get the configured taskbar icon size.
+ *
+ * @return int The icon size in pixels used for taskbar items.
+ */
+auto taskbarIconSize() const -> int { return m_taskbarIconSize; }
+  /**
+ * @brief Gets the configured orientation for the taskbar.
+ *
+ * @return Gtk::Orientation The configured orientation used to layout the taskbar.
+ */
+auto taskbarOrientation() const -> Gtk::Orientation { return m_taskbarOrientation; }
+  /**
+ * @brief Indicates whether the taskbar layout is reversed.
+ *
+ * @return `true` if the taskbar presents items in reverse direction, `false` otherwise.
+ */
+auto taskbarReverseDirection() const -> bool { return m_taskbarReverseDirection; }
+  /**
+ * @brief Action string to execute when a workspace window is clicked.
+ *
+ * @return The configured action/command string for window click events.
+ */
+auto onClickWindow() const -> std::string { return m_onClickWindow; }
+  /**
+ * @brief List of regex patterns used to identify windows to ignore.
+ *
+ * @return std::vector<std::regex> Regex patterns matching windows that should be ignored.
+ */
+auto getIgnoredWindows() const -> std::vector<std::regex> { return m_ignoreWindows; }
 
   enum class ActiveWindowPosition { NONE, FIRST, LAST };
-  auto activeWindowPosition() const -> ActiveWindowPosition { return m_activeWindowPosition; }
+  /**
+ * @brief Get the configured placement of the active window within the taskbar.
+ *
+ * @return ActiveWindowPosition The configured placement: `NONE` (no special placement),
+ * `FIRST` (active window placed at the beginning), or `LAST` (active window placed at the end).
+ */
+auto activeWindowPosition() const -> ActiveWindowPosition { return m_activeWindowPosition; }
 
   std::string getRewrite(std::string window_class, std::string window_title);
-  std::string& getWindowSeparator() { return m_formatWindowSeparator; }
+  /**
+ * @brief Access the format string used as the separator between window entries.
+ *
+ * @return std::string& Reference to the current window-separator format string.
+ */
+std::string& getWindowSeparator() { return m_formatWindowSeparator; }
   bool isWorkspaceIgnored(std::string const& workspace_name);
 
   bool windowRewriteConfigUsesTitle() const { return m_anyWindowRewriteRuleUsesTitle; }

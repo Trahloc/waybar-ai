@@ -63,6 +63,27 @@ waybar::modules::Temperature::Temperature(const std::string& id, const Json::Val
   };
 }
 
+/**
+ * @brief Refreshes the module's displayed temperature and updates UI state.
+ *
+ * Reads the current temperature, formats Celsius, Fahrenheit, and Kelvin values,
+ * selects and applies an output format (normal, warning, or critical), updates
+ * the label markup and tooltip, toggles the module's visibility, and adjusts
+ * CSS classes to reflect warning/critical states before delegating to the
+ * parent update.
+ *
+ * The selected format and thresholds come from configuration keys:
+ * - "format-critical" — optional format used when temperature is critical.
+ * - "format-warning" — optional format used when temperature is in the warning range.
+ * - "critical-threshold" — integer threshold for critical state.
+ * - "tooltip-format" — optional format for the tooltip.
+ *
+ * Displayed temperature tokens available to formats:
+ * - `{temperatureC}` — temperature in degrees Celsius (rounded).
+ * - `{temperatureF}` — temperature in degrees Fahrenheit (rounded).
+ * - `{temperatureK}` — temperature in Kelvin (rounded).
+ * - `{icon}` — icon chosen based on temperature and critical threshold.
+ */
 auto waybar::modules::Temperature::update() -> void {
   auto temperature = getTemperature();
   uint16_t temperature_c = std::round(temperature);

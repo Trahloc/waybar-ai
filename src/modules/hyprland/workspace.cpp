@@ -94,6 +94,14 @@ bool Workspace::handleClicked(GdkEventButton *bt) const {
   return false;
 }
 
+/**
+ * @brief Populate the workspace's internal window map from Hyprland client data.
+ *
+ * Clears the current window map and inserts representations for each client whose
+ * workspace id matches this workspace's id.
+ *
+ * @param clients_data JSON array of client objects as provided by Hyprland IPC.
+ */
 void Workspace::initializeWindowMap(const Json::Value &clients_data) {
   m_windowMap.clear();
   for (auto client : clients_data) {
@@ -103,6 +111,14 @@ void Workspace::initializeWindowMap(const Json::Value &clients_data) {
   }
 }
 
+/**
+ * @brief Marks the window matching the given address as active and reorders the internal window list according to the workspace manager's active-window position policy.
+ *
+ * Updates each WindowRepr in the workspace to reflect whether it is active. If a matching window is found and the workspace manager specifies FIRST or LAST for active windows,
+ * the matching WindowRepr is moved to the beginning or end of the internal window map respectively.
+ *
+ * @param addr Address of the window to mark active.
+ */
 void Workspace::setActiveWindow(WindowAddress const &addr) {
   std::optional<long> activeIdx;
   for (size_t i = 0; i < m_windowMap.size(); ++i) {
@@ -209,6 +225,19 @@ std::string &Workspace::selectIcon(std::map<std::string, std::string> &icons_map
   return m_name;
 }
 
+/**
+ * @brief Update the workspace button, its styling, label, and taskbar contents to reflect
+ * the workspace's current state and the workspace manager's configuration.
+ *
+ * This updates visibility (show/hide) according to persistentOnly, activeOnly, and
+ * specialVisibleOnly rules, toggles CSS classes that represent workspace state
+ * (active, special, empty, persistent, urgent, visible, hosting-monitor), and
+ * refreshes the label used before the content with the formatted id, name, icon,
+ * and window list. If the workspace manager has the taskbar enabled, the taskbar
+ * contents are updated instead of constructing the inline window string.
+ *
+ * @param workspace_icon The chosen icon string for this workspace used when formatting labels.
+ */
 void Workspace::update(const std::string &workspace_icon) {
   if (this->m_workspaceManager.persistentOnly() && !this->isPersistent()) {
     m_button.hide();
@@ -268,6 +297,14 @@ void Workspace::update(const std::string &workspace_icon) {
   }
 }
 
+/**
+ * @brief Determine whether the workspace contains any non-ignored windows.
+ *
+ * Considers the workspace empty when it has zero windows or when every tracked
+ * window matches the workspace manager's ignore list.
+ *
+ * @return `true` if the workspace has no windows or all windows are ignored, `false` otherwise.
+ */
 bool Workspace::isEmpty() const {
   auto ignore_list = m_workspaceManager.getIgnoredWindows();
   if (ignore_list.empty()) {
@@ -279,6 +316,16 @@ bool Workspace::isEmpty() const {
       [this, &ignore_list](const auto &window_repr) { return shouldSkipWindow(window_repr); });
 }
 
+/**
+ * @brief Rebuilds the taskbar entries for this workspace using current windows and configuration.
+ *
+ * Reconstructs the contents of the workspace taskbar area from m_windowMap according to
+ * workspace manager settings (separator, order direction, icon usage, per-window formats,
+ * click handler configuration, and trailing format). Windows that match the workspace's
+ * ignore rules are omitted.
+ *
+ * @param workspace_icon Icon string used when rendering the trailing workspace format.
+ */
 void Workspace::updateTaskbar(const std::string &workspace_icon) {
   for (auto child : m_content.get_children()) {
     if (child != &m_labelBefore) {

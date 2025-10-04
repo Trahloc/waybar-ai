@@ -38,10 +38,15 @@ void Language::updateFromIPC() {
 }
 
 /**
- *  Language::doUpdate - update workspaces in UI thread.
+ * @brief Refreshes the language label to reflect the current keyboard layout.
  *
- * Note: some member fields are modified by both UI thread and event listener thread, use mutex_ to
- *       protect these member fields, and lock should released before calling ALabel::update().
+ * Updates the module's visible label and its style class based on the current layout entry:
+ * - Validates the current index and hides the label if out of range.
+ * - Applies or removes the layout short-name CSS class.
+ * - Chooses a format string from configuration (layout-specific or default) and sets the label markup,
+ *   or hides the label when no format is configured.
+ *
+ * This method acquires the internal mutex_ to synchronize with the event listener thread.
  */
 void Language::doUpdate() {
   std::lock_guard<std::mutex> lock(mutex_);

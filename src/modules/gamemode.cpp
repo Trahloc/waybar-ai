@@ -21,6 +21,30 @@
 #include "util/gtk_icon.hpp"
 
 namespace waybar::modules {
+/**
+ * @brief Construct a Gamemode module instance and initialize its UI and D-Bus integration.
+ *
+ * Initializes the module widget (icon and label), applies configuration options, and sets up
+ * D-Bus monitoring and signal subscriptions required to track Gamemode service presence,
+ * property changes, and system sleep/wake events.
+ *
+ * Recognized configuration keys in `config`:
+ * - "tooltip" (bool)
+ * - "tooltip-format" (string)
+ * - "hide-not-running" (bool)
+ * - "icon-name" (string)
+ * - "icon-spacing" (uint)
+ * - "use-icon" (bool)
+ * - "icon-size" (uint)
+ * - "format" (string)
+ * - "format-alt" (string)
+ * - "glyph" (string)
+ *
+ * @param id Identifier for the module instance.
+ * @param config JSON object containing module configuration (see recognized keys above).
+ * @throws std::runtime_error If unable to create the Gamemode DBus proxy or to obtain a connection
+ *                           to the system bus for subscribing to PrepareForSleep signals.
+ */
 Gamemode::Gamemode(const std::string& id, const Json::Value& config)
     : AModule(config, "gamemode", id), box_(Gtk::ORIENTATION_HORIZONTAL, 0), icon_(), label_() {
   box_.pack_start(icon_);
@@ -187,6 +211,14 @@ bool Gamemode::handleToggle(GdkEventButton* const& event) {
   return true;
 }
 
+/**
+ * @brief Update the module's visible state and UI to reflect current Gamemode data.
+ *
+ * Updates visibility based on whether Gamemode is running and the configured hide-when-empty behavior,
+ * adjusts the container's CSS status class, refreshes the tooltip and label text using configured formats,
+ * ensures the icon name is valid, applies icon spacing and pixel size when icons are enabled (or resets them when disabled),
+ * and then invokes the base module update logic.
+ */
 auto Gamemode::update() -> void {
   // Don't update widget if the Gamemode service isn't running
   if (!gamemodeRunning || (gameCount <= 0 && hideNotRunning)) {

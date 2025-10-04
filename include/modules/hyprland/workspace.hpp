@@ -39,10 +39,30 @@ class Workspace {
   bool isActive() const { return m_isActive; };
   bool isSpecial() const { return m_isSpecial; };
   bool isPersistent() const { return m_isPersistentRule || m_isPersistentConfig; };
-  bool isPersistentConfig() const { return m_isPersistentConfig; };
-  bool isPersistentRule() const { return m_isPersistentRule; };
-  bool isVisible() const { return m_isVisible; };
-  bool isUrgent() const { return m_isUrgent; };
+  /**
+ * @brief Indicates whether the workspace is marked persistent by configuration.
+ *
+ * @return `true` if the workspace was marked persistent via configuration, `false` otherwise.
+ */
+bool isPersistentConfig() const { return m_isPersistentConfig; };
+  /**
+ * @brief Whether the workspace has a persistent rule applied.
+ *
+ * @return `true` if the workspace has a persistent rule applied, `false` otherwise.
+ */
+bool isPersistentRule() const { return m_isPersistentRule; };
+  /**
+ * @brief Indicates whether the workspace is currently visible.
+ *
+ * @return `true` if the workspace is visible, `false` otherwise.
+ */
+bool isVisible() const { return m_isVisible; };
+  /**
+ * @brief Indicates whether the workspace currently has an urgent window.
+ *
+ * @return `true` if the workspace is marked urgent, `false` otherwise.
+ */
+bool isUrgent() const { return m_isUrgent; };
 
   bool handleClicked(GdkEventButton* bt) const;
   void setActive(bool value = true) { m_isActive = value; };
