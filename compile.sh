@@ -15,10 +15,8 @@ fi
 
 # Build with ninja
 echo "Building with ninja..."
-# Build with ninja
-echo "Building with ninja..."
 cd build || exit 1
-ninja   || exit 1
+ninja || exit 1
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful! waybar executable created."

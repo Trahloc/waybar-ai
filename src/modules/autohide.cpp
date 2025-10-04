@@ -55,34 +55,34 @@ Autohide::~Autohide() {
 }
 
 void Autohide::startMouseTracking() {
-  if (mouse_thread_running_) {
+  if (mouse_thread_running_.load()) {
     return;
   }
 
   spdlog::debug("Autohide: Starting mouse tracking thread");
-  mouse_thread_exit_ = false;
+  mouse_thread_exit_.store(false);
   mouse_thread_ = std::thread(&Autohide::mouseTrackingThread, this);
-  mouse_thread_running_ = true;
+  mouse_thread_running_.store(true);
 }
 
 void Autohide::stopMouseTracking() {
-  if (!mouse_thread_running_) {
+  if (!mouse_thread_running_.load()) {
     return;
   }
 
   spdlog::debug("Autohide: Stopping mouse tracking thread");
-  mouse_thread_exit_ = true;
+  mouse_thread_exit_.store(true);
 
   if (mouse_thread_.joinable()) {
     mouse_thread_.join();
   }
-  mouse_thread_running_ = false;
+  mouse_thread_running_.store(false);
 }
 
 void Autohide::mouseTrackingThread() {
   spdlog::debug("Autohide: Mouse tracking thread started");
 
-  while (!mouse_thread_exit_) {
+  while (!mouse_thread_exit_.load()) {
     if (bar_) {
       checkMousePosition();
     }
@@ -242,7 +242,13 @@ void Autohide::update() {
 }
 
 void Autohide::onEvent(const std::string& ev) {
-  std::string eventName(begin(ev), begin(ev) + ev.find_first_of('>'));
+  std::string eventName;
+  size_t pos = ev.find_first_of('>');
+  if (pos == std::string::npos) {
+    eventName = ev;
+  } else {
+    eventName = ev.substr(0, pos);
+  }
 
   if (eventName == "workspacev2" || eventName == "focusedmonv2") {
     spdlog::trace("Autohide: Workspace/monitor changed - forcing waybar visible");

@@ -33,9 +33,8 @@ fi
 if [ "$CURRENT_BRANCH" != "master" ]; then
     echo "🔄 Checking if feature branch is up to date with master..."
     git fetch origin master
-    BEHIND=$(git rev-list --count master..$CURRENT_BRANCH)
     AHEAD=$(git rev-list --count $CURRENT_BRANCH..master)
-    
+
     if [ $AHEAD -gt 0 ]; then
         echo "⚠️  Warning: Feature branch is $AHEAD commits behind master"
         echo "   Consider: git checkout master && git merge upstream/master && git checkout $CURRENT_BRANCH && git rebase master"

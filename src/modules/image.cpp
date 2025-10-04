@@ -14,19 +14,18 @@ waybar::modules::Image::Image(const std::string& id, const Json::Value& config)
 
   size_ = config["size"].asInt();
 
-  interval_ = config_["interval"] == "once"
-                   ? std::chrono::milliseconds::max()
-                   : std::chrono::milliseconds(
-                         std::max(1L, // Minimum 1ms due to millisecond precision
-                                  static_cast<long>(
-                                      (config_["interval"].isNumeric() ? config_["interval"].asDouble() : 0) * 1000)));
+  if (config_["interval"].isString() && config_["interval"].asString() == "once") {
+    interval_ = std::chrono::milliseconds::max();
+  } else if (config_["interval"].isNumeric()) {
+    auto seconds = config_["interval"].asDouble();
+    auto millis = static_cast<long>(seconds * 1000);
+    interval_ = std::chrono::milliseconds(std::max(1L, millis));
+  } else {
+    interval_ = std::chrono::milliseconds::max();
+  }
 
   if (size_ == 0) {
     size_ = 16;
-  }
-
-  if (interval_.count() == 0) {
-    interval_ = std::chrono::milliseconds::max();
   }
 
   delayWorker();

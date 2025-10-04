@@ -108,22 +108,29 @@ void Config::setupConfig(Json::Value &dst, const std::string &config_file, int d
 
 std::vector<std::string> Config::findIncludePath(const std::string &name,
                                                  const std::vector<std::string> &dirs) {
+  std::vector<std::string> matches;
+
+  // Try the initial name
   auto match1 = tryExpandPath(name, "");
   if (!match1.empty()) {
-    return match1;
+    matches.insert(matches.end(), match1.begin(), match1.end());
   }
+
+  // Try CONFIG_PATH_ENV if present
   if (const char *dir = std::getenv(Config::CONFIG_PATH_ENV)) {
     if (auto res = tryExpandPath(dir, name); !res.empty()) {
-      return res;
-    }
-  }
-  for (const auto &dir : dirs) {
-    if (auto res = tryExpandPath(dir, name); !res.empty()) {
-      return res;
+      matches.insert(matches.end(), res.begin(), res.end());
     }
   }
 
-  return {};
+  // Try each directory in dirs
+  for (const auto &dir : dirs) {
+    if (auto res = tryExpandPath(dir, name); !res.empty()) {
+      matches.insert(matches.end(), res.begin(), res.end());
+    }
+  }
+
+  return matches;
 }
 
 void Config::resolveConfigIncludes(Json::Value &config, int depth) {
