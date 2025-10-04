@@ -1,0 +1,109 @@
+# Waybar Fork Development Rules
+
+## Project Context
+This is a fork of upstream Waybar (https://github.com/Alexays/Waybar.git) with custom autohide functionality. Maintain upstream parity while adding valuable features.
+
+## Repository Structure
+- `upstream` → Original Waybar repository
+- `origin` → This fork (https://github.com/Trahloc/waybar-ai)
+- `master` → Main branch (upstream + custom features)
+- `feature/*` → Feature development branches
+
+## Mandatory Workflow
+
+### Feature Development
+1. ALWAYS start from master: `git checkout master && git pull upstream master`
+2. Create feature branch: `git checkout -b feature/descriptive-name`
+3. Make changes and commit with conventional messages
+4. Push branch: `git push origin feature/descriptive-name`
+5. Create PR via CLI: `gh pr create --title "feat: Title" --body "Description"`
+
+### Upstream Sync (Monthly)
+1. Fetch upstream: `git fetch upstream`
+2. Create sync branch: `git checkout -b upstream-sync`
+3. Merge upstream: `git merge upstream/master`
+4. Test everything works: `ninja -C build waybar`
+5. Merge to master: `git checkout master && git merge upstream-sync`
+6. Push and clean up: `git push origin master && git branch -d upstream-sync`
+
+## Code Quality Rules
+
+### Module Development
+- Follow waybar's module architecture patterns
+- Inherit from `AModule` and implement required methods
+- Use proper thread safety with `std::atomic` and `dp.emit()`
+- Follow RAII principles for resource management
+
+### Configuration
+- All config options must have sensible defaults
+- Use pattern: `config_["key"].isUInt() ? config_["key"].asUInt() : default_value`
+- Document all configuration options
+
+### Threading & IPC
+- GTK operations MUST be on main thread (use `dp.emit()`)
+- Background threads for polling/monitoring only
+- Use Hyprland IPC for Wayland-specific functionality
+- Set `waybar::modules::hyprland::modulesReady = true` for Hyprland modules
+
+### Error Handling
+- Always check for null pointers before use
+- Use `spdlog` for logging (trace, debug, info, warn, error)
+- Graceful degradation when external dependencies fail
+
+## Commit Message Standards
+- `feat:` Add new feature
+- `fix:` Fix bug
+- `refactor:` Code refactoring
+- `docs:` Documentation changes
+- `test:` Add or update tests
+- `chore:` Maintenance tasks
+
+## Forbidden Practices
+- Direct pushes to master branch
+- Merge commits in feature branches (use rebase)
+- Hardcoded values without configuration options
+- Memory leaks or resource leaks
+- Blocking operations on main thread
+- External dependencies without fallbacks
+
+## Build Requirements
+- Code MUST compile with `ninja -C build waybar`
+- No compiler warnings (except external library warnings)
+- All features must be testable
+- Resource usage must be minimal and justified
+
+## Autohide Module Specific
+- Mouse tracking via Hyprland IPC only
+- Two-consecutive-events requirement for show trigger
+- Per-monitor mouse position tracking
+- Workspace change detection via Hyprland events
+- State machine design (no multiple boolean flags)
+- Minimum 10ms delays to prevent race conditions
+- Trace-level logging for mouse position (avoid spam)
+
+## Pre-PR Checklist
+- [ ] Code compiles without errors
+- [ ] No compiler warnings (except external)
+- [ ] All config options have defaults
+- [ ] Thread safety implemented correctly
+- [ ] Resource cleanup in destructor
+- [ ] Proper error handling
+- [ ] Meaningful commit messages
+- [ ] Feature branch is up to date with master
+
+## Emergency Procedures
+If master branch gets corrupted:
+```bash
+git checkout master
+git reset --hard upstream/master
+git push origin master --force-with-lease
+```
+
+## Success Criteria
+- Upstream parity maintained
+- Custom features working correctly
+- Clean git history
+- Proper PR workflow followed
+- Code follows waybar standards
+- Minimal resource usage
+- Thread-safe implementation
