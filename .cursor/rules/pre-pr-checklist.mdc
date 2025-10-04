@@ -1,50 +1,8 @@
 ---
-description: Pre-PR Checklist
+description: Comprehensive checklist for validating code quality, git workflow, and testing before creating pull requests
 alwaysApply: false
 ---
 # Pre-PR Checklist
-
-## Code Quality
-- [ ] Code compiles without errors
-- [ ] No compiler warnings (except external library warnings)
-- [ ] All config options have defaults
-- [ ] Thread safety implemented correctly
-- [ ] Resource cleanup in destructor
-- [ ] Proper error handling
-
-## Git Workflow
-- [ ] Working on feature branch (not master)
-- [ ] Feature branch is up to date with master
-- [ ] Meaningful commit messages following conventional format
-- [ ] Branch is pushed to remote
-- [ ] No merge commits in feature branch
-
-## Testing
-- [ ] All features tested and working
-- [ ] No regressions in existing functionality
-- [ ] Resource usage is minimal and justified
-- [ ] Error conditions handled gracefully
-
-## Documentation
-- [ ] Configuration options documented
-- [ ] Complex logic has inline comments
-- [ ] Commit messages are descriptive
-- [ ] PR description is comprehensive
-
-## Autohide Module Specific
-- [ ] Mouse tracking works correctly
-- [ ] Two-consecutive-events requirement implemented
-- [ ] Workspace change detection working
-- [ ] State machine prevents impossible states
-- [ ] Logging levels are appropriate (trace for mouse, debug for state)
-- [ ] Per-monitor tracking implemented
-- [ ] Thread safety for GTK operations
-
-## Final Steps
-- [ ] Run `./validate-workflow.sh` to verify
-- [ ] Create PR with `gh pr create`
-- [ ] Review PR on GitHub
-- [ ] Merge when ready# Pre-PR Checklist
 
 ## Code Quality
 - [ ] Code compiles without errors

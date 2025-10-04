@@ -1,53 +1,9 @@
 ---
-description: Code Quality Rules
+description: C++ code standards, module architecture, threading, and error handling for Waybar modules
 alwaysApply: false
 ---
 
 # Code Quality Rules
-
-## Module Development
-- Follow waybar's module architecture patterns
-- Inherit from `AModule` and implement required methods
-- Use proper thread safety with `std::atomic` and `dp.emit()`
-- Follow RAII principles for resource management
-
-## Configuration
-- All config options must have sensible defaults
-- Use `config_["key"].isUInt() ? config_["key"].asUInt() : default_value` pattern
-- Document all configuration options in commit messages
-
-## Threading & IPC
-- GTK operations MUST be on main thread (use `dp.emit()`)
-- Background threads for polling/monitoring only
-- Use Hyprland IPC for Wayland-specific functionality
-- Set `waybar::modules::hyprland::modulesReady = true` for Hyprland modules
-
-## Error Handling
-- Always check for null pointers before use
-- Use `spdlog` for logging (appropriate levels: trace, debug, info, warn, error)
-- Graceful degradation when external dependencies fail
-
-## Commit Message Standards
-```
-feat: Add new feature
-fix: Fix bug
-refactor: Code refactoring
-docs: Documentation changes
-test: Add or update tests
-chore: Maintenance tasks
-```
-
-## Forbidden Practices
-- Hardcoded values without configuration options
-- Memory leaks or resource leaks
-- Blocking operations on main thread
-- External dependencies without fallbacks
-
-## Build Requirements
-- Code MUST compile with `ninja -C build waybar`
-- No compiler warnings (except external library warnings)
-- All features must be testable
-- Resource usage must be minimal and justified# Code Quality Rules
 
 ## Module Development
 - Follow waybar's module architecture patterns
