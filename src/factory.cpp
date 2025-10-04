@@ -117,12 +117,12 @@
 #ifdef HAVE_LIBGPS
 #include "modules/gps.hpp"
 #endif
+#include "modules/autohide.hpp"
 #include "modules/cffi.hpp"
 #include "modules/custom.hpp"
 #include "modules/image.hpp"
 #include "modules/temperature.hpp"
 #include "modules/user.hpp"
-#include "modules/autohide.hpp"
 
 waybar::Factory::Factory(const Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
 
