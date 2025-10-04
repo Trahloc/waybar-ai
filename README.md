@@ -151,6 +151,31 @@ Contributions welcome!<br>
 Have fun :)<br>
 The style guidelines are [Google's](https://google.github.io/styleguide/cppguide.html)
 
+## Development
+
+### Git Hooks
+
+This project includes git hooks to enforce code quality standards. Set them up by running:
+
+```bash
+./setup-hooks.sh
+```
+
+The hooks will:
+- Check C++ code formatting with clang-format
+- Perform basic code quality checks
+- Warn about large files and potential issues
+
+See [.githooks/README.md](.githooks/README.md) for detailed information.
+
+### Code Formatting
+
+Format C++ code using clang-format:
+
+```bash
+find src -name '*.cpp' -o -name '*.hpp' | xargs clang-format --style=file -i
+```
+
 ## License
 
 Waybar is licensed under the MIT license. [See LICENSE for more information](https://github.com/Alexays/Waybar/blob/master/LICENSE).
