@@ -1,0 +1,255 @@
+#include "modules/autohide.hpp"
+
+#include <spdlog/spdlog.h>
+#include <thread>
+#include <chrono>
+#include <atomic>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+
+namespace waybar::modules {
+
+Autohide::Autohide(const std::string& id, const Bar& bar, const Json::Value& config)
+    : AModule(config, "autohide", id, false, false),
+      config_(config),
+      bar_(const_cast<Bar*>(&bar)),
+      m_ipc(waybar::modules::hyprland::IPC::inst()),
+      waybar_state_(WaybarState::VISIBLE),  // Start with waybar visible (as it is by default)
+      mouse_thread_running_(false),
+      mouse_thread_exit_(false) {
+
+  // Set modulesReady flag - this is required for IPC to work
+  // This is safe because all Hyprland modules do this
+  waybar::modules::hyprland::modulesReady = true;
+
+  // Get configuration values
+  threshold_hidden_y_ = config_["threshold-hidden-y"].isUInt() ?
+                       config_["threshold-hidden-y"].asUInt() : 1;
+  threshold_visible_y_ = config_["threshold-visible-y"].isUInt() ?
+                        config_["threshold-visible-y"].asUInt() : 50;
+  delay_show_ = config_["delay-show"].isUInt() ?
+                config_["delay-show"].asUInt() : 0;
+  delay_hide_ = config_["delay-hide"].isUInt() ?
+                config_["delay-hide"].asUInt() : 3000;
+  check_interval_ = config_["check-interval"].isUInt() ?
+                   config_["check-interval"].asUInt() : 100;
+
+  spdlog::info("Autohide module initialized - hidden_y: {}, visible_y: {}, delay_show: {}ms, delay_hide: {}ms, interval: {}ms",
+               threshold_hidden_y_, threshold_visible_y_, delay_show_, delay_hide_, check_interval_);
+
+  // Register for workspace events - the IPC system will handle the registration
+  // even if it's not ready yet (it will queue the registration)
+  spdlog::info("Autohide: Registering for workspace events");
+  m_ipc.registerForIPC("workspacev2", this);
+  m_ipc.registerForIPC("focusedmonv2", this);
+
+  // dp.emit() will automatically call update() on the main thread
+
+  // Start mouse tracking thread
+  startMouseTracking();
+}
+
+Autohide::~Autohide() {
+  stopMouseTracking();
+  m_ipc.unregisterForIPC(this);
+}
+
+
+void Autohide::startMouseTracking() {
+  if (mouse_thread_running_) {
+    return;
+  }
+
+  spdlog::debug("Autohide: Starting mouse tracking thread");
+  mouse_thread_exit_ = false;
+  mouse_thread_ = std::thread(&Autohide::mouseTrackingThread, this);
+  mouse_thread_running_ = true;
+}
+
+void Autohide::stopMouseTracking() {
+  if (!mouse_thread_running_) {
+    return;
+  }
+
+  spdlog::debug("Autohide: Stopping mouse tracking thread");
+  mouse_thread_exit_ = true;
+
+  if (mouse_thread_.joinable()) {
+    mouse_thread_.join();
+  }
+  mouse_thread_running_ = false;
+}
+
+void Autohide::mouseTrackingThread() {
+  spdlog::debug("Autohide: Mouse tracking thread started");
+
+  while (!mouse_thread_exit_) {
+    if (bar_) {
+      checkMousePosition();
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(check_interval_));
+  }
+
+  spdlog::debug("Autohide: Mouse tracking thread stopped");
+}
+
+void Autohide::checkMousePosition() {
+  int mouse_x, mouse_y;
+
+  if (!getMousePosition(mouse_x, mouse_y)) {
+    spdlog::debug("Autohide: Failed to get mouse position");
+    return; // Failed to get mouse position
+  }
+
+  // Get monitor geometry to check if mouse is on this monitor
+  if (!bar_ || !bar_->output || !bar_->output->monitor) {
+    spdlog::debug("Autohide: No bar, output, or monitor available");
+    return;
+  }
+
+  auto monitor_geometry = *bar_->output->monitor->property_geometry().get_value().gobj();
+
+  // Check if mouse is actually on this monitor
+  if (mouse_x < monitor_geometry.x ||
+      mouse_x >= monitor_geometry.x + monitor_geometry.width ||
+      mouse_y < monitor_geometry.y ||
+      mouse_y >= monitor_geometry.y + monitor_geometry.height) {
+    spdlog::debug("Autohide: Mouse at ({},{}) not on monitor {} (geometry: x={}, y={}, w={}, h={})",
+                  mouse_x, mouse_y, bar_->output->name,
+                  monitor_geometry.x, monitor_geometry.y,
+                  monitor_geometry.width, monitor_geometry.height);
+    return; // Mouse is not on this monitor, ignore
+  }
+
+  // Convert to monitor-relative coordinates
+  int monitor_mouse_y = mouse_y - monitor_geometry.y;
+
+  // Log mouse position changes (trace level to avoid spam)
+  spdlog::trace("Autohide: Mouse at screen ({},{}) -> monitor y={}, state={}",
+                mouse_x, mouse_y, monitor_mouse_y, static_cast<int>(waybar_state_.load()));
+
+  // Simple logic: mouse_y <= 1px = visible, mouse_y > 50px = hidden
+  if (monitor_mouse_y <= static_cast<int>(threshold_hidden_y_)) {
+    // Mouse at top 1px - should show waybar (requires two consecutive events)
+    if (last_trigger_was_show_) {
+      // This is the second consecutive show trigger
+      if (waybar_state_ == WaybarState::HIDDEN) {
+        spdlog::debug("Autohide: Mouse at y={} (<=1px) on monitor {} - second consecutive trigger, scheduling show", monitor_mouse_y, bar_->output->name);
+        waybar_state_ = WaybarState::PENDING_VISIBLE;
+        timer_start_ = std::chrono::steady_clock::now();
+      }
+      else if (waybar_state_ == WaybarState::PENDING_HIDDEN) {
+        spdlog::debug("Autohide: Mouse at y={} (<=1px) on monitor {} - second consecutive trigger, canceling hide, scheduling show", monitor_mouse_y, bar_->output->name);
+        waybar_state_ = WaybarState::PENDING_VISIBLE;
+        timer_start_ = std::chrono::steady_clock::now();
+      }
+    } else {
+      // First show trigger - mark it but don't act yet
+      spdlog::trace("Autohide: Mouse at y={} (<=1px) on monitor {} - first show trigger, waiting for second", monitor_mouse_y, bar_->output->name);
+    }
+    last_trigger_was_show_ = true;
+  }
+  else if (monitor_mouse_y > static_cast<int>(threshold_visible_y_)) {
+    // Mouse below 50px - should hide waybar (only if currently visible)
+    if (waybar_state_ == WaybarState::VISIBLE) {
+      spdlog::trace("Autohide: Mouse at y={} (>50px) on monitor {} - scheduling hide", monitor_mouse_y, bar_->output->name);
+      waybar_state_ = WaybarState::PENDING_HIDDEN;
+      timer_start_ = std::chrono::steady_clock::now();
+    }
+    else if (waybar_state_ == WaybarState::PENDING_VISIBLE) {
+      spdlog::trace("Autohide: Mouse at y={} (>50px) on monitor {} - canceling show, scheduling hide", monitor_mouse_y, bar_->output->name);
+      waybar_state_ = WaybarState::PENDING_HIDDEN;
+      timer_start_ = std::chrono::steady_clock::now();
+    }
+    // If already PENDING_HIDDEN, don't reset the timer - let it continue counting
+    // This ensures the timer only starts once when entering the hide zone
+
+    // Reset the show trigger flag when mouse moves to hide zone
+    last_trigger_was_show_ = false;
+  }
+  else {
+    // Mouse is between 1px and 50px - reset the show trigger flag
+    last_trigger_was_show_ = false;
+  }
+
+  // Check if pending actions should execute
+  auto now = std::chrono::steady_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - timer_start_).count();
+
+  if (waybar_state_ == WaybarState::PENDING_VISIBLE) {
+    // Use minimum 10ms delay to avoid race conditions and timing issues
+    uint32_t effective_delay = std::max(delay_show_, 10u);
+    if (elapsed >= static_cast<long>(effective_delay)) {
+      spdlog::debug("Autohide: Executing delayed show after {}ms", elapsed);
+      waybar_state_ = WaybarState::VISIBLE;
+      dp.emit();
+    }
+  }
+  else if (waybar_state_ == WaybarState::PENDING_HIDDEN) {
+    // Use minimum 10ms delay to avoid race conditions and timing issues
+    uint32_t effective_delay = std::max(delay_hide_, 10u);
+    if (elapsed >= static_cast<long>(effective_delay)) {
+      spdlog::debug("Autohide: Executing delayed hide after {}ms", elapsed);
+      waybar_state_ = WaybarState::HIDDEN;
+      dp.emit();
+    }
+  }
+}
+
+bool Autohide::getMousePosition(int& x, int& y) {
+  // Use Hyprland IPC to get global cursor position
+  try {
+    auto reply = m_ipc.getSocket1Reply("cursorpos");
+    if (reply.empty()) {
+      return false;
+    }
+
+    // Parse the reply format: "x,y" (e.g., "1234,567")
+    size_t comma_pos = reply.find(',');
+    if (comma_pos == std::string::npos) {
+      return false;
+    }
+
+    x = std::stoi(reply.substr(0, comma_pos));
+    y = std::stoi(reply.substr(comma_pos + 1));
+    return true;
+  } catch (const std::exception& e) {
+    spdlog::debug("Autohide: Failed to get cursor position via IPC: {}", e.what());
+    return false;
+  }
+}
+
+void Autohide::update() {
+  // This method runs on the main thread, so it's safe to call GTK operations
+  if (!bar_) {
+    spdlog::warn("Autohide: Bar pointer is null, cannot update visibility");
+    return;
+  }
+
+  switch (waybar_state_.load()) {
+    case WaybarState::VISIBLE:
+    case WaybarState::PENDING_HIDDEN:
+      bar_->setMode(Bar::MODE_DEFAULT);
+      break;
+    case WaybarState::HIDDEN:
+    case WaybarState::PENDING_VISIBLE:
+      bar_->setMode(Bar::MODE_INVISIBLE);
+      break;
+  }
+}
+
+void Autohide::onEvent(const std::string& ev) {
+  std::string eventName(begin(ev), begin(ev) + ev.find_first_of('>'));
+
+  if (eventName == "workspacev2" || eventName == "focusedmonv2") {
+    spdlog::trace("Autohide: Workspace/monitor changed - forcing waybar visible");
+
+    // Force waybar to be visible when workspace changes
+    waybar_state_ = WaybarState::VISIBLE;
+    dp.emit();  // Trigger update() on main thread
+  }
+}
+
+}  // namespace waybar::modules

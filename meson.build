@@ -163,6 +163,7 @@ src_files = files(
     'src/ALabel.cpp',
     'src/AIconLabel.cpp',
     'src/AAppIconLabel.cpp',
+    'src/modules/autohide.cpp',
     'src/modules/custom.cpp',
     'src/modules/disk.cpp',
     'src/modules/idle_inhibitor.cpp',

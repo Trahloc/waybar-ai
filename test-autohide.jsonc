@@ -1,0 +1,23 @@
+{
+    "height": 30,
+    "spacing": 4,
+    "modules-left": [
+        "autohide"
+    ],
+    "modules-center": [
+        "clock"
+    ],
+    "modules-right": [
+        "battery",
+        "network"
+    ],
+    "autohide": {
+        "threshold-hidden-y": 1,
+        "threshold-visible-y": 50,
+        "hide-delay": 1000,
+        "check-interval": 100
+    },
+    "clock": {
+        "format": "{:%H:%M:%S}"
+    }
+}
