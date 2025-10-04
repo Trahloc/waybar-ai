@@ -1,0 +1,70 @@
+# Waybar Fork Management Rules
+
+## Repository Structure
+- `upstream` → Original Waybar repository (https://github.com/Alexays/Waybar.git)
+- `origin` → This fork (https://github.com/Trahloc/waybar-ai)
+- `master` → Main branch (upstream + custom features)
+- `feature/*` → Feature development branches
+
+## Mandatory Workflow
+
+### Feature Development
+```bash
+# ALWAYS start from master
+git checkout master
+git pull upstream master  # Get latest upstream changes
+git checkout -b feature/descriptive-name
+
+# Work on feature
+# ... make changes ...
+
+# Commit with proper messages
+git add .
+git commit -m "feat: descriptive commit message"
+
+# Push feature branch
+git push origin feature/descriptive-name
+
+# Create PR via GitHub CLI
+gh pr create --title "feat: Feature Title" --body "Detailed description"
+```
+
+### Upstream Sync Process
+```bash
+# Fetch latest upstream
+git fetch upstream
+
+# Create temporary sync branch
+git checkout -b upstream-sync
+git merge upstream/master
+
+# Test everything works
+ninja -C build waybar
+# ... run tests ...
+
+# If good, merge to master
+git checkout master
+git merge upstream-sync
+git push origin master
+
+# Clean up
+git branch -d upstream-sync
+```
+
+## Forbidden Practices
+- Direct pushes to master branch
+- Merge commits in feature branches (use rebase)
+- Hardcoded values without configuration options
+- Memory leaks or resource leaks
+- Blocking operations on main thread
+- External dependencies without fallbacks
+
+## Pre-PR Checklist
+- [ ] Code compiles without errors
+- [ ] No compiler warnings (except external)
+- [ ] All config options have defaults
+- [ ] Thread safety implemented correctly
+- [ ] Resource cleanup in destructor
+- [ ] Proper error handling
+- [ ] Meaningful commit messages
+- [ ] Feature branch is up to date with master
