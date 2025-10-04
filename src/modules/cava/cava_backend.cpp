@@ -54,8 +54,12 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
   if (config["sleep_timer"].isInt()) prm_.sleep_timer = config["sleep_timer"].asInt();
   if (config["method"].isString())
     prm_.input = ::cava::input_method_by_name(config["method"].asString().c_str());
-  if (config["source"].isString()) prm_.audio_source = config["source"].asString().data();
-  if (config["sample_rate"].isNumeric()) prm_.samplerate = config["sample_rate"].asLargestInt();
+  if (config["source"].isString()) {
+    audio_source_override_ = config["source"].asString();
+    prm_.audio_source       = audio_source_override_.c_str();
+  }
+  if (config["sample_rate"].isNumeric())
+    prm_.samplerate = config["sample_rate"].asLargestInt();
   if (config["sample_bits"].isInt()) prm_.samplebits = config["sample_bits"].asInt();
   if (config["stereo"].isBool()) prm_.stereo = config["stereo"].asBool();
   if (config["reverse"].isBool()) prm_.reverse = config["reverse"].asBool();
