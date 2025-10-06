@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "util/json.hpp"
 
@@ -109,24 +110,44 @@ void Config::setupConfig(Json::Value &dst, const std::string &config_file, int d
 std::vector<std::string> Config::findIncludePath(const std::string &name,
                                                  const std::vector<std::string> &dirs) {
   std::vector<std::string> matches;
+  std::unordered_set<std::string> seen;
+
+  auto addUniqueMatches = [&](const std::vector<std::string> &candidates) {
+    for (const auto &candidate : candidates) {
+      try {
+        // Canonicalize the path to handle symlinks, trailing slashes, etc.
+        std::string canonical = fs::weakly_canonical(candidate).string();
+        if (seen.find(canonical) == seen.end()) {
+          seen.insert(canonical);
+          matches.push_back(candidate);
+        }
+      } catch (const std::exception &) {
+        // If canonicalization fails, use the original path
+        if (seen.find(candidate) == seen.end()) {
+          seen.insert(candidate);
+          matches.push_back(candidate);
+        }
+      }
+    }
+  };
 
   // Try the initial name
   auto match1 = tryExpandPath(name, "");
   if (!match1.empty()) {
-    matches.insert(matches.end(), match1.begin(), match1.end());
+    addUniqueMatches(match1);
   }
 
   // Try CONFIG_PATH_ENV if present
   if (const char *dir = std::getenv(Config::CONFIG_PATH_ENV)) {
     if (auto res = tryExpandPath(dir, name); !res.empty()) {
-      matches.insert(matches.end(), res.begin(), res.end());
+      addUniqueMatches(res);
     }
   }
 
   // Try each directory in dirs
   for (const auto &dir : dirs) {
     if (auto res = tryExpandPath(dir, name); !res.empty()) {
-      matches.insert(matches.end(), res.begin(), res.end());
+      addUniqueMatches(res);
     }
   }
 
