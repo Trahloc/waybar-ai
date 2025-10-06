@@ -109,7 +109,7 @@
 #include "modules/wireplumber.hpp"
 #endif
 #ifdef HAVE_LIBCAVA
-#include "modules/cava.hpp"
+#include "modules/cava/cava.hpp"
 #endif
 #ifdef HAVE_SYSTEMD_MONITOR
 #include "modules/systemd_failed_units.hpp"
@@ -117,13 +117,14 @@
 #ifdef HAVE_LIBGPS
 #include "modules/gps.hpp"
 #endif
+#include "modules/autohide.hpp"
 #include "modules/cffi.hpp"
 #include "modules/custom.hpp"
 #include "modules/image.hpp"
 #include "modules/temperature.hpp"
 #include "modules/user.hpp"
 
-waybar::Factory::Factory(const Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
+waybar::Factory::Factory(Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
 
 waybar::AModule* waybar::Factory::makeModule(const std::string& name,
                                              const std::string& pos) const {
@@ -343,7 +344,7 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
 #endif
 #ifdef HAVE_LIBCAVA
     if (ref == "cava") {
-      return new waybar::modules::Cava(id, config_[name]);
+      return new waybar::modules::cava::Cava(id, config_[name]);
     }
 #endif
 #ifdef HAVE_SYSTEMD_MONITOR
@@ -364,6 +365,9 @@ waybar::AModule* waybar::Factory::makeModule(const std::string& name,
     }
     if (ref.compare(0, 5, "cffi/") == 0 && ref.size() > 5) {
       return new waybar::modules::CFFI(ref.substr(5), id, config_[name]);
+    }
+    if (ref == "autohide") {
+      return new waybar::modules::Autohide(id, bar_, config_[name]);
     }
   } catch (const std::exception& e) {
     auto err = fmt::format("Disabling module \"{}\", {}", name, e.what());

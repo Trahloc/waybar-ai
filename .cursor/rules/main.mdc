@@ -1,0 +1,51 @@
+---
+description: Main development rules and quick reference for Waybar fork with autohide functionality
+alwaysApply: true
+---
+# Waybar Fork Development Rules
+
+## Project Context
+This is a fork of upstream Waybar (https://github.com/Alexays/Waybar.git) with custom autohide functionality. Maintain upstream parity while adding valuable features.
+
+## Rule Files
+- `git-workflow.mdc` - Git and branching workflow
+- `code-quality.mdc` - Code standards and best practices
+- `autohide-module.mdc` - Autohide module specific rules
+- `pre-pr-checklist.mdc` - Pre-PR validation checklist
+
+## Quick Commands
+
+### Start New Feature
+```bash
+git checkout master && git pull upstream master
+git checkout -b feature/your-feature-name
+# ... make changes ...
+git add . && git commit -m "feat: your message"
+git push origin feature/your-feature-name
+gh pr create --title "feat: Title" --body "Description"
+```
+
+### Validate Before PR
+```bash
+./validate-workflow.sh
+```
+
+### Upstream Sync
+```bash
+git fetch upstream
+git checkout -b upstream-sync
+git merge upstream/master
+# ... test ...
+git checkout master && git merge upstream-sync
+git push origin master
+git branch -d upstream-sync
+```
+
+## Success Criteria
+- Upstream parity maintained
+- Custom features working correctly
+- Clean git history
+- Proper PR workflow followed
+- Code follows waybar standards
+- Minimal resource usage
+- Thread-safe implementation

@@ -150,11 +150,7 @@ Tags::Tags(const std::string &id, const waybar::Bar &bar, const Json::Value &con
     button.show();
   }
 
-  struct wl_output *output = gdk_wayland_monitor_get_wl_output(bar_.output->monitor->gobj());
-  output_status_ = zriver_status_manager_v1_get_river_output_status(status_manager_, output);
-  zriver_output_status_v1_add_listener(output_status_, &output_status_listener_impl, this);
-
-  zriver_status_manager_v1_destroy(status_manager_);
+  box_.signal_show().connect(sigc::mem_fun(*this, &Tags::handle_show));
 }
 
 Tags::~Tags() {
@@ -165,6 +161,27 @@ Tags::~Tags() {
   if (control_) {
     zriver_control_v1_destroy(control_);
   }
+
+  if (status_manager_) {
+    zriver_status_manager_v1_destroy(status_manager_);
+  }
+}
+
+void Tags::handle_show() {
+  if (output_status_ != nullptr) {
+    return;
+  }
+  if (status_manager_ == nullptr) {
+    spdlog::warn("river_status_manager_v1 not available on show");
+    return;
+  }
+
+  struct wl_output *output = gdk_wayland_monitor_get_wl_output(bar_.output->monitor->gobj());
+  output_status_ = zriver_status_manager_v1_get_river_output_status(status_manager_, output);
+  zriver_output_status_v1_add_listener(output_status_, &output_status_listener_impl, this);
+
+  zriver_status_manager_v1_destroy(status_manager_);
+  status_manager_ = nullptr;
 }
 
 void Tags::handle_primary_clicked(uint32_t tag) {
