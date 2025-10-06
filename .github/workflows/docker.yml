@@ -6,6 +6,10 @@ on:
     # run monthly
     - cron: '0 0 1 * *'
 
+# DISABLED: Only Arch Linux + Hyprland tests are required
+# To re-enable: remove the condition below
+if: false
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
