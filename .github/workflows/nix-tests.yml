@@ -3,11 +3,8 @@ on:
   pull_request:
   push:
 
-# DISABLED: Only Arch Linux + Hyprland tests are required
-# To re-enable: remove the condition below
-if: false
-
 jobs:
+  if: ${{ false }}  # This disables the job
   nix-flake-check:
     runs-on: ubuntu-latest
     steps:
