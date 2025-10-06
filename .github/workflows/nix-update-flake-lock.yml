@@ -7,14 +7,11 @@ on:
       paths:
         - 'flake.nix'
 
-# DISABLED: Only Arch Linux + Hyprland tests are required
-# To re-enable: remove the condition below
-if: false
-
 jobs:
   lockfile:
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule' || github.repository == 'Alexays/Waybar'
+    if: ${{ false }}  # This disables the job
+#    if: github.event_name != 'schedule' || github.repository == 'Alexays/Waybar'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
