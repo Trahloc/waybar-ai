@@ -11,10 +11,10 @@
 
 namespace waybar::modules {
 
-Autohide::Autohide(const std::string& id, const Bar& bar, const Json::Value& config)
+Autohide::Autohide(const std::string& id, Bar& bar, const Json::Value& config)
     : AModule(config, "autohide", id, false, false),
       config_(config),
-      bar_(const_cast<Bar*>(&bar)),
+      bar_(&bar),
       m_ipc(waybar::modules::hyprland::IPC::inst()),
       waybar_state_(WaybarState::VISIBLE),  // Start with waybar visible (as it is by default)
       mouse_thread_running_(false),
@@ -291,7 +291,7 @@ void Autohide::onEvent(const std::string& ev) {
     spdlog::trace("Autohide: Workspace/monitor changed - forcing waybar visible");
 
     // Force waybar to be visible when workspace changes
-    waybar_state_ = WaybarState::VISIBLE;
+    waybar_state_.store(WaybarState::VISIBLE, std::memory_order_seq_cst);
     dp.emit();  // Trigger update() on main thread
   }
 }

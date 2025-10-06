@@ -14,7 +14,7 @@ namespace waybar::modules {
 
 class Autohide : public AModule, public waybar::modules::hyprland::EventHandler {
  public:
-  Autohide(const std::string& id, const Bar& bar, const Json::Value& config);
+  Autohide(const std::string& id, Bar& bar, const Json::Value& config);
   ~Autohide();
 
  private:

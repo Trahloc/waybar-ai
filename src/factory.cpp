@@ -124,7 +124,7 @@
 #include "modules/temperature.hpp"
 #include "modules/user.hpp"
 
-waybar::Factory::Factory(const Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
+waybar::Factory::Factory(Bar& bar, const Json::Value& config) : bar_(bar), config_(config) {}
 
 waybar::AModule* waybar::Factory::makeModule(const std::string& name,
                                              const std::string& pos) const {
