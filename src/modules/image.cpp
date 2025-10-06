@@ -18,8 +18,12 @@ waybar::modules::Image::Image(const std::string& id, const Json::Value& config)
     interval_ = std::chrono::milliseconds::max();
   } else if (config_["interval"].isNumeric()) {
     auto seconds = config_["interval"].asDouble();
-    auto millis = static_cast<long>(seconds * 1000);
-    interval_ = std::chrono::milliseconds(std::max(1L, millis));
+    if (seconds <= 0) {
+      interval_ = std::chrono::milliseconds::max();
+    } else {
+      auto millis = static_cast<long>(seconds * 1000);
+      interval_ = std::chrono::milliseconds(std::max(1L, millis));
+    }
   } else {
     interval_ = std::chrono::milliseconds::max();
   }

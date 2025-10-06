@@ -23,20 +23,20 @@ if ! command -v clang-format &> /dev/null; then
 fi
 
 # Get list of staged C++ files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(cpp|hpp|h|c)$' || true)
+mapfile -t STAGED_FILES < <(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(cpp|hpp|h|c)$' || true)
 
-if [ -z "$STAGED_FILES" ]; then
+if [ ${#STAGED_FILES[@]} -eq 0 ]; then
     echo -e "${GREEN}✅ No C++ files to check.${NC}"
     exit 0
 fi
 
-echo "📝 Checking C++ files: $STAGED_FILES"
+echo "📝 Checking C++ files: ${STAGED_FILES[*]}"
 
 # Check clang-format
 echo "🎨 Running clang-format check..."
 FORMAT_ISSUES=0
 
-for file in $STAGED_FILES; do
+for file in "${STAGED_FILES[@]}"; do
     if [ -f "$file" ]; then
         # Check if file needs formatting
         if ! clang-format --style=file --dry-run --Werror "$file" >/dev/null 2>&1; then
@@ -61,22 +61,22 @@ fi
 # Check for common C++ issues
 echo "🔍 Running basic C++ checks..."
 
-for file in $STAGED_FILES; do
+for file in "${STAGED_FILES[@]}"; do
     if [ -f "$file" ]; then
         # Check for TODO/FIXME comments (warn only)
-        if grep -n "TODO\|FIXME" "$file" >/dev/null 2>&1; then
+        if grep -nE "TODO|FIXME" "$file" >/dev/null 2>&1; then
             echo -e "${YELLOW}⚠️  $file contains TODO/FIXME comments${NC}"
         fi
-        
+
         # Check for debug prints (warn only)
-        if grep -n "std::cout\|printf\|cout" "$file" >/dev/null 2>&1; then
+        if grep -nE "std::cout|printf|cout" "$file" >/dev/null 2>&1; then
             echo -e "${YELLOW}⚠️  $file may contain debug prints${NC}"
         fi
     fi
 done
 
 # Check for large files (warn if > 1000 lines)
-for file in $STAGED_FILES; do
+for file in "${STAGED_FILES[@]}"; do
     if [ -f "$file" ]; then
         LINES=$(wc -l < "$file")
         if [ $LINES -gt 1000 ]; then

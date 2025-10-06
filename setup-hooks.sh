@@ -20,6 +20,13 @@ echo "Choose your pre-commit hook style:"
 echo "1) Strict mode (fails on formatting issues, requires manual fix)"
 echo "2) Auto-fix mode (automatically fixes formatting issues)"
 echo ""
+
+# Verify required hook files exist
+if [ ! -f ".githooks/pre-commit" ] || [ ! -f ".githooks/pre-commit-auto-fix" ]; then
+    echo "❌ Error: Required hook files not found in .githooks/"
+    exit 1
+fi
+
 read -p "Enter choice [1-2]: " choice
 
 case $choice in
@@ -41,6 +48,7 @@ esac
 chmod +x .githooks/pre-commit-active
 
 # Configure git to use our custom hooks directory
+echo "Configuring git to use .githooks directory..."
 git config core.hooksPath .githooks
 
 echo "✅ Git hooks configured successfully!"

@@ -17,7 +17,7 @@
         "delay-hide": 1000,
         "delay-show": 0,
         "check-interval": 100,
-        "consecutive-checks-before-visible": 3
+        "consecutive-checks-before-visible": 4
     },
     "clock": {
         "format": "{:%H:%M:%S}"
