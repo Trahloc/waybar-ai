@@ -2,6 +2,11 @@ name: "Nix-Tests"
 on:
   pull_request:
   push:
+
+# DISABLED: Only Arch Linux + Hyprland tests are required
+# To re-enable: remove the condition below
+if: false
+
 jobs:
   nix-flake-check:
     runs-on: ubuntu-latest
