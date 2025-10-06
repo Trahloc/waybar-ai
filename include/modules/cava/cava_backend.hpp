@@ -3,6 +3,9 @@
 #include <json/json.h>
 #include <sigc++/sigc++.h>
 
+#include <string>
+#include <vector>
+
 #include "util/sleeper_thread.hpp"
 
 namespace cava {
@@ -61,6 +64,12 @@ class CavaBackend final {
   std::chrono::seconds suspend_silence_delay_{0};
   int sleep_counter_{0};
   std::string output_{};
+  std::string audio_source_override_{};
+
+  // RAII wrappers for audio_data_ memory management
+  std::string audio_source_buffer_{};
+  std::vector<double> audio_cava_in_buffer_{};
+
   // Methods
   void invoke();
   void execute();

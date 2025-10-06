@@ -141,14 +141,14 @@ void Autohide::checkMousePosition() {
             "Autohide: Mouse at y={} (<=1px) on monitor {} - {} consecutive triggers, "
             "scheduling show",
             monitor_mouse_y, bar_->output->name, consecutive_show_triggers_);
-        waybar_state_ = WaybarState::PENDING_VISIBLE;
+        waybar_state_.store(WaybarState::PENDING_VISIBLE, std::memory_order_seq_cst);
         timer_start_ = std::chrono::steady_clock::now();
       } else if (waybar_state_ == WaybarState::PENDING_HIDDEN) {
         spdlog::debug(
             "Autohide: Mouse at y={} (<=1px) on monitor {} - {} consecutive triggers, canceling "
             "hide, scheduling show",
             monitor_mouse_y, bar_->output->name, consecutive_show_triggers_);
-        waybar_state_ = WaybarState::PENDING_VISIBLE;
+        waybar_state_.store(WaybarState::PENDING_VISIBLE, std::memory_order_seq_cst);
         timer_start_ = std::chrono::steady_clock::now();
       }
     } else {
@@ -164,13 +164,13 @@ void Autohide::checkMousePosition() {
     if (waybar_state_ == WaybarState::VISIBLE) {
       spdlog::trace("Autohide: Mouse at y={} (>50px) on monitor {} - scheduling hide",
                     monitor_mouse_y, bar_->output->name);
-      waybar_state_ = WaybarState::PENDING_HIDDEN;
+      waybar_state_.store(WaybarState::PENDING_HIDDEN, std::memory_order_seq_cst);
       timer_start_ = std::chrono::steady_clock::now();
     } else if (waybar_state_ == WaybarState::PENDING_VISIBLE) {
       spdlog::trace(
           "Autohide: Mouse at y={} (>50px) on monitor {} - canceling show, scheduling hide",
           monitor_mouse_y, bar_->output->name);
-      waybar_state_ = WaybarState::PENDING_HIDDEN;
+      waybar_state_.store(WaybarState::PENDING_HIDDEN, std::memory_order_seq_cst);
       timer_start_ = std::chrono::steady_clock::now();
     }
     // If already PENDING_HIDDEN, don't reset the timer - let it continue counting
@@ -192,7 +192,7 @@ void Autohide::checkMousePosition() {
     uint32_t effective_delay = std::max(delay_show_, 10u);
     if (elapsed >= static_cast<long>(effective_delay)) {
       spdlog::debug("Autohide: Executing delayed show after {}ms", elapsed);
-      waybar_state_ = WaybarState::VISIBLE;
+      waybar_state_.store(WaybarState::VISIBLE, std::memory_order_seq_cst);
       dp.emit();
     }
   } else if (waybar_state_ == WaybarState::PENDING_HIDDEN) {
@@ -200,7 +200,7 @@ void Autohide::checkMousePosition() {
     uint32_t effective_delay = std::max(delay_hide_, 10u);
     if (elapsed >= static_cast<long>(effective_delay)) {
       spdlog::debug("Autohide: Executing delayed hide after {}ms", elapsed);
-      waybar_state_ = WaybarState::HIDDEN;
+      waybar_state_.store(WaybarState::HIDDEN, std::memory_order_seq_cst);
       dp.emit();
     }
   }

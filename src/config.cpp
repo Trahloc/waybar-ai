@@ -138,7 +138,7 @@ void Config::resolveConfigIncludes(Json::Value &config, int depth) {
   if (includes.isArray()) {
     for (const auto &include : includes) {
       spdlog::info("Including resource file: {}", include.asString());
-      auto matches = findIncludePath(include.asString());
+      auto matches = findIncludePath(include.asString(), Config::CONFIG_DIRS);
       if (!matches.empty()) {
         for (const auto &match : matches) {
           setupConfig(config, match, depth + 1);
@@ -149,7 +149,7 @@ void Config::resolveConfigIncludes(Json::Value &config, int depth) {
     }
   } else if (includes.isString()) {
     spdlog::info("Including resource file: {}", includes.asString());
-    auto matches = findIncludePath(includes.asString());
+    auto matches = findIncludePath(includes.asString(), Config::CONFIG_DIRS);
     if (!matches.empty()) {
       for (const auto &match : matches) {
         setupConfig(config, match, depth + 1);

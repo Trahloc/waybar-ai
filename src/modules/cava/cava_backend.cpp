@@ -2,6 +2,25 @@
 
 #include <spdlog/spdlog.h>
 
+#include <mutex>
+
+namespace {
+// RAII wrapper for pthread_mutex_t to provide exception safety
+class PthreadMutexLock {
+ public:
+  explicit PthreadMutexLock(pthread_mutex_t* mutex) : mutex_(mutex) { pthread_mutex_lock(mutex_); }
+
+  ~PthreadMutexLock() { pthread_mutex_unlock(mutex_); }
+
+  // Non-copyable
+  PthreadMutexLock(const PthreadMutexLock&) = delete;
+  PthreadMutexLock& operator=(const PthreadMutexLock&) = delete;
+
+ private:
+  pthread_mutex_t* mutex_;
+};
+}  // namespace
+
 std::shared_ptr<waybar::modules::cava::CavaBackend> waybar::modules::cava::CavaBackend::inst(
     const Json::Value& config) {
   static auto* backend = new CavaBackend(config);
@@ -11,10 +30,12 @@ std::shared_ptr<waybar::modules::cava::CavaBackend> waybar::modules::cava::CavaB
 
 waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
   // Load waybar module config
-  char cfgPath[PATH_MAX];
-  cfgPath[0] = '\0';
+  std::string cfgPathStr;
+  if (config["cava_config"].isString()) {
+    cfgPathStr = config["cava_config"].asString();
+  }
+  const char* cfgPath = cfgPathStr.empty() ? nullptr : cfgPathStr.c_str();
 
-  if (config["cava_config"].isString()) strcpy(cfgPath, config["cava_config"].asString().data());
   // Load cava config
   error_.length = 0;
 
@@ -56,10 +77,9 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
     prm_.input = ::cava::input_method_by_name(config["method"].asString().c_str());
   if (config["source"].isString()) {
     audio_source_override_ = config["source"].asString();
-    prm_.audio_source       = audio_source_override_.c_str();
+    prm_.audio_source = audio_source_override_.c_str();
   }
-  if (config["sample_rate"].isNumeric())
-    prm_.samplerate = config["sample_rate"].asLargestInt();
+  if (config["sample_rate"].isNumeric()) prm_.samplerate = config["sample_rate"].asLargestInt();
   if (config["sample_bits"].isInt()) prm_.samplebits = config["sample_bits"].asInt();
   if (config["stereo"].isBool()) prm_.stereo = config["stereo"].asBool();
   if (config["reverse"].isBool()) prm_.reverse = config["reverse"].asBool();
@@ -76,9 +96,10 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
 
   audio_raw_.height = prm_.ascii_range;
   audio_data_.format = -1;
-  audio_data_.source = new char[1 + strlen(prm_.audio_source)];
-  audio_data_.source[0] = '\0';
-  strcpy(audio_data_.source, prm_.audio_source);
+
+  // Use RAII wrapper for audio source
+  audio_source_buffer_ = prm_.audio_source;
+  audio_data_.source = const_cast<char*>(audio_source_buffer_.c_str());
 
   audio_data_.rate = 0;
   audio_data_.samples_counter = 0;
@@ -88,7 +109,9 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
   audio_data_.input_buffer_size = BUFFER_SIZE * audio_data_.channels;
   audio_data_.cava_buffer_size = audio_data_.input_buffer_size * 8;
 
-  audio_data_.cava_in = new double[audio_data_.cava_buffer_size]{0.0};
+  // Use RAII wrapper for cava_in buffer
+  audio_cava_in_buffer_.resize(audio_data_.cava_buffer_size, 0.0);
+  audio_data_.cava_in = audio_cava_in_buffer_.data();
 
   audio_data_.terminate = 0;
   audio_data_.suspendFlag = false;
@@ -124,6 +147,11 @@ waybar::modules::cava::CavaBackend::~CavaBackend() {
   read_thread_.stop();
   delete plan_;
   plan_ = nullptr;
+
+  // Clear pointers to prevent use after destruction
+  // (RAII objects will handle actual memory cleanup)
+  audio_data_.source = nullptr;
+  audio_data_.cava_in = nullptr;
 }
 
 static void upThreadDelay(std::chrono::milliseconds& delay, std::chrono::seconds& delta) {
@@ -154,11 +182,10 @@ int waybar::modules::cava::CavaBackend::getAsciiRange() { return prm_.ascii_rang
 
 // Process: execute cava
 void waybar::modules::cava::CavaBackend::invoke() {
-  pthread_mutex_lock(&audio_data_.lock);
+  PthreadMutexLock lock(&audio_data_.lock);
   ::cava::cava_execute(audio_data_.cava_in, audio_data_.samples_counter, audio_raw_.cava_out,
                        plan_);
   if (audio_data_.samples_counter > 0) audio_data_.samples_counter = 0;
-  pthread_mutex_unlock(&audio_data_.lock);
 }
 
 // Do transformation under raw data
@@ -177,7 +204,7 @@ void waybar::modules::cava::CavaBackend::execute() {
 }
 
 void waybar::modules::cava::CavaBackend::doPauseResume() {
-  pthread_mutex_lock(&audio_data_.lock);
+  PthreadMutexLock lock(&audio_data_.lock);
   if (audio_data_.suspendFlag) {
     audio_data_.suspendFlag = false;
     pthread_cond_broadcast(&audio_data_.resumeCond);
@@ -186,7 +213,6 @@ void waybar::modules::cava::CavaBackend::doPauseResume() {
     audio_data_.suspendFlag = true;
     upThreadDelay(frame_time_milsec_, suspend_silence_delay_);
   }
-  pthread_mutex_unlock(&audio_data_.lock);
 }
 
 waybar::modules::cava::CavaBackend::type_signal_update
@@ -208,8 +234,9 @@ void waybar::modules::cava::CavaBackend::doUpdate(bool force) {
   if (!silence_) sleep_counter_ = 0;
 
   if (silence_ && prm_.sleep_timer != 0) {
-    if (sleep_counter_ <=
-        (int)(std::chrono::milliseconds(prm_.sleep_timer * 1s) / frame_time_milsec_)) {
+    auto sleep_duration_ms = std::chrono::milliseconds(prm_.sleep_timer * 1000);
+    auto max_sleep_frames = sleep_duration_ms / frame_time_milsec_;
+    if (sleep_counter_ <= max_sleep_frames) {
       ++sleep_counter_;
       silence_ = false;
     }
