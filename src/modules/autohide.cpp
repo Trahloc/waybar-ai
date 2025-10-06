@@ -31,11 +31,15 @@ Autohide::Autohide(const std::string& id, const Bar& bar, const Json::Value& con
   delay_show_ = config_["delay-show"].isUInt() ? config_["delay-show"].asUInt() : 0;
   delay_hide_ = config_["delay-hide"].isUInt() ? config_["delay-hide"].asUInt() : 3000;
   check_interval_ = config_["check-interval"].isUInt() ? config_["check-interval"].asUInt() : 100;
+  consecutive_checks_before_visible_ = config_["consecutive-checks-before-visible"].isUInt()
+                                           ? config_["consecutive-checks-before-visible"].asUInt()
+                                           : 2;
 
   spdlog::info(
       "Autohide module initialized - hidden_y: {}, visible_y: {}, delay_show: {}ms, delay_hide: "
-      "{}ms, interval: {}ms",
-      threshold_hidden_y_, threshold_visible_y_, delay_show_, delay_hide_, check_interval_);
+      "{}ms, interval: {}ms, consecutive_checks: {}",
+      threshold_hidden_y_, threshold_visible_y_, delay_show_, delay_hide_, check_interval_,
+      consecutive_checks_before_visible_);
 
   // Register for workspace events - the IPC system will handle the registration
   // even if it's not ready yet (it will queue the registration)
@@ -127,31 +131,34 @@ void Autohide::checkMousePosition() {
 
   // Simple logic: mouse_y <= 1px = visible, mouse_y > 50px = hidden
   if (monitor_mouse_y <= static_cast<int>(threshold_hidden_y_)) {
-    // Mouse at top 1px - should show waybar (requires two consecutive events)
-    if (last_trigger_was_show_) {
-      // This is the second consecutive show trigger
+    // Mouse at top 1px - should show waybar (requires configurable consecutive events)
+    consecutive_show_triggers_++;
+
+    if (consecutive_show_triggers_ >= consecutive_checks_before_visible_) {
+      // We have enough consecutive show triggers
       if (waybar_state_ == WaybarState::HIDDEN) {
         spdlog::debug(
-            "Autohide: Mouse at y={} (<=1px) on monitor {} - second consecutive trigger, "
+            "Autohide: Mouse at y={} (<=1px) on monitor {} - {} consecutive triggers, "
             "scheduling show",
-            monitor_mouse_y, bar_->output->name);
+            monitor_mouse_y, bar_->output->name, consecutive_show_triggers_);
         waybar_state_ = WaybarState::PENDING_VISIBLE;
         timer_start_ = std::chrono::steady_clock::now();
       } else if (waybar_state_ == WaybarState::PENDING_HIDDEN) {
         spdlog::debug(
-            "Autohide: Mouse at y={} (<=1px) on monitor {} - second consecutive trigger, canceling "
+            "Autohide: Mouse at y={} (<=1px) on monitor {} - {} consecutive triggers, canceling "
             "hide, scheduling show",
-            monitor_mouse_y, bar_->output->name);
+            monitor_mouse_y, bar_->output->name, consecutive_show_triggers_);
         waybar_state_ = WaybarState::PENDING_VISIBLE;
         timer_start_ = std::chrono::steady_clock::now();
       }
     } else {
-      // First show trigger - mark it but don't act yet
+      // Not enough consecutive triggers yet
       spdlog::trace(
-          "Autohide: Mouse at y={} (<=1px) on monitor {} - first show trigger, waiting for second",
-          monitor_mouse_y, bar_->output->name);
+          "Autohide: Mouse at y={} (<=1px) on monitor {} - {}/{} consecutive triggers, waiting for "
+          "more",
+          monitor_mouse_y, bar_->output->name, consecutive_show_triggers_,
+          consecutive_checks_before_visible_);
     }
-    last_trigger_was_show_ = true;
   } else if (monitor_mouse_y > static_cast<int>(threshold_visible_y_)) {
     // Mouse below 50px - should hide waybar (only if currently visible)
     if (waybar_state_ == WaybarState::VISIBLE) {
@@ -169,11 +176,11 @@ void Autohide::checkMousePosition() {
     // If already PENDING_HIDDEN, don't reset the timer - let it continue counting
     // This ensures the timer only starts once when entering the hide zone
 
-    // Reset the show trigger flag when mouse moves to hide zone
-    last_trigger_was_show_ = false;
+    // Reset the show trigger counter when mouse moves to hide zone
+    consecutive_show_triggers_ = 0;
   } else {
-    // Mouse is between 1px and 50px - reset the show trigger flag
-    last_trigger_was_show_ = false;
+    // Mouse is between 1px and 50px - reset the show trigger counter
+    consecutive_show_triggers_ = 0;
   }
 
   // Check if pending actions should execute

@@ -34,6 +34,7 @@ class Autohide : public AModule, public waybar::modules::hyprland::EventHandler 
   uint32_t delay_show_;
   uint32_t delay_hide_;
   uint32_t check_interval_;
+  uint32_t consecutive_checks_before_visible_;
 
   // State machine - only one state can be true at any time
   enum class WaybarState {
@@ -51,8 +52,8 @@ class Autohide : public AModule, public waybar::modules::hyprland::EventHandler 
   std::atomic<bool> mouse_thread_running_;
   std::atomic<bool> mouse_thread_exit_;
 
-  // Two-consecutive-events requirement for show trigger
-  bool last_trigger_was_show_ = false;
+  // Consecutive show trigger counter
+  uint32_t consecutive_show_triggers_ = 0;
 };
 
 }  // namespace waybar::modules

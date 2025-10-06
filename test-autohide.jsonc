@@ -14,8 +14,10 @@
     "autohide": {
         "threshold-hidden-y": 1,
         "threshold-visible-y": 50,
-        "hide-delay": 1000,
-        "check-interval": 100
+        "delay-hide": 1000,
+        "delay-show": 0,
+        "check-interval": 100,
+        "consecutive-checks-before-visible": 3
     },
     "clock": {
         "format": "{:%H:%M:%S}"
