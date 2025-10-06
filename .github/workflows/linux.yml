@@ -2,16 +2,13 @@ name: linux
 
 on: [push, pull_request]
 
-# DISABLED: Only Arch Linux + Hyprland tests are required
-# To re-enable: remove the condition below
-if: false
-
 concurrency:
   group: ${{ github.workflow }}-linux-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
+    if: ${{ false }}  # This disables the job
     strategy:
       fail-fast: false
       matrix:
