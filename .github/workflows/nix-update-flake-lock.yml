@@ -6,6 +6,11 @@ on:
   push:
       paths:
         - 'flake.nix'
+
+# DISABLED: Only Arch Linux + Hyprland tests are required
+# To re-enable: remove the condition below
+if: false
+
 jobs:
   lockfile:
     runs-on: ubuntu-latest
