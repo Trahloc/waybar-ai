@@ -93,13 +93,21 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
 
   // Make cava parameters configuration
   plan_ = new ::cava::cava_plan{};
+  if (!plan_) {
+    throw std::runtime_error("Failed to allocate cava plan");
+  }
 
   audio_raw_.height = prm_.ascii_range;
   audio_data_.format = -1;
 
-  // Use RAII wrapper for audio source
-  audio_source_buffer_ = prm_.audio_source;
-  audio_data_.source = const_cast<char*>(audio_source_buffer_.c_str());
+  // Use RAII wrapper for audio source with proper null checking
+  if (prm_.audio_source && strlen(prm_.audio_source) > 0) {
+    audio_source_buffer_copy_.resize(strlen(prm_.audio_source) + 1);
+    std::strcpy(audio_source_buffer_copy_.data(), prm_.audio_source);
+    audio_data_.source = audio_source_buffer_copy_.data();
+  } else {
+    audio_data_.source = nullptr;
+  }
 
   audio_data_.rate = 0;
   audio_data_.samples_counter = 0;
@@ -124,7 +132,6 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
 
   // Init cava plan, audio_raw structure
   audio_raw_init(&audio_data_, &audio_raw_, &prm_, plan_);
-  if (!plan_) spdlog::error("cava backend plan is not provided");
   audio_raw_.previous_frame[0] = -1;  // For first Update() call need to rePaint text message
   // Read audio source trough cava API. Cava orginizes this process via infinity loop
   read_thread_ = [this] {
@@ -169,6 +176,7 @@ static void downThreadDelay(std::chrono::milliseconds& delay, std::chrono::secon
 }
 
 bool waybar::modules::cava::CavaBackend::isSilence() {
+  PthreadMutexLock lock(&audio_data_.lock);
   for (int i{0}; i < audio_data_.input_buffer_size; ++i) {
     if (audio_data_.cava_in[i]) {
       return false;

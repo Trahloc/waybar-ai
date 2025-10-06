@@ -68,6 +68,7 @@ class CavaBackend final {
 
   // RAII wrappers for audio_data_ memory management
   std::string audio_source_buffer_{};
+  std::vector<char> audio_source_buffer_copy_{};
   std::vector<double> audio_cava_in_buffer_{};
 
   // Methods
