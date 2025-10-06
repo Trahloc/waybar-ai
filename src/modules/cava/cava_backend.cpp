@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <mutex>
+#include <stdexcept>
 
 namespace {
 // RAII wrapper for pthread_mutex_t to provide exception safety
@@ -56,7 +57,7 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
 
   if (!load_config(cfgPath, &prm_, false, &error_)) {
     spdlog::error("cava backend. Error loading config. {0}", error_.message);
-    exit(EXIT_FAILURE);
+    throw std::runtime_error("cava backend: Error loading config - " + std::string(error_.message));
   }
 
   // Override cava parameters by the user config
@@ -142,7 +143,7 @@ waybar::modules::cava::CavaBackend::CavaBackend(const Json::Value& config) {
 
   if (!input_source_) {
     spdlog::error("cava backend API didn't provide input audio source method");
-    exit(EXIT_FAILURE);
+    throw std::runtime_error("cava backend: API didn't provide input audio source method");
   }
 
   // Init cava plan, audio_raw structure
