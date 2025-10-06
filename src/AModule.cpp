@@ -153,6 +153,19 @@ bool AModule::handleToggle(GdkEventButton* const& e) { return handleUserEvent(e)
 
 bool AModule::handleRelease(GdkEventButton* const& e) { return handleUserEvent(e); }
 
+/**
+ * Handle a mouse button event for the module, invoking any mapped module action,
+ * popping up a configured menu, running an associated command, and emitting an update.
+ *
+ * If the event matches an entry in the module's event-to-action map, the corresponding
+ * module action is performed. If that action name equals the configured "menu" value,
+ * the module's GTK menu is shown at the pointer and the module child widget's prelight
+ * state is cleared. If a configuration entry with the action name exists and is a string,
+ * that command is executed (child PID recorded). The module's update signal is emitted.
+ *
+ * @param e Pointer to the GDK button event that triggered this handler.
+ * @return `true` always (the event is handled).
+ */
 bool AModule::handleUserEvent(GdkEventButton* const& e) {
   std::string format{};
   const std::map<std::pair<uint, GdkEventType>, std::string>::const_iterator& rec{

@@ -429,6 +429,14 @@ void waybar::Bar::setPosition(Gtk::PositionType position) {
   }
 }
 
+/**
+ * @brief Initialize the Wayland surface and global position when the window is mapped.
+ *
+ * Obtains the GDK window and corresponding Wayland surface, computes the global offset
+ * using the window's width and height, and reapplies the current passthrough state.
+ * If the GDK window or its underlying GDK object is unavailable, logs a warning and
+ * defers surface initialization by returning early.
+ */
 void waybar::Bar::onMap(GdkEventAny* /*unused*/) {
   /*
    * Obtain a pointer to the custom layer surface for modules that require it (idle_inhibitor).
