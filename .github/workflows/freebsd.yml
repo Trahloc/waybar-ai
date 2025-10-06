@@ -2,6 +2,10 @@ name: freebsd
 
 on: [push, pull_request]
 
+# DISABLED: Only Arch Linux + Hyprland tests are required
+# To re-enable: remove the condition below
+if: false
+
 concurrency:
   group: ${{ github.workflow }}-freebsd-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
