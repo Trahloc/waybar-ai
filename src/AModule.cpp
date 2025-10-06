@@ -179,7 +179,7 @@ bool AModule::handleUserEvent(GdkEventButton* const& e) {
   }
 
   // Check that a menu has been configured
-  if (config_["menu"].isString()) {
+  if (rec != eventMap_.cend() && config_["menu"].isString()) {
     // Check if the event is the one specified for the "menu" option
     if (rec->second == config_["menu"].asString()) {
       // Popup the menu

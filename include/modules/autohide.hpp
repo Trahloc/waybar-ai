@@ -55,7 +55,10 @@ class Autohide : public AModule, public waybar::modules::hyprland::EventHandler 
   std::atomic<bool> mouse_thread_exit_;
 
   // Consecutive show trigger counter
-  uint32_t consecutive_show_triggers_ = 0;
+  std::atomic<uint32_t> consecutive_show_triggers_{0};
+
+  // Track whether the previous trigger was a "show" at top edge
+  bool last_trigger_was_show_{false};
 
   // Cached monitor data (updated on main thread, read on background thread)
   struct MonitorCache {

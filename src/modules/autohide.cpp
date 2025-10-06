@@ -165,9 +165,9 @@ void Autohide::checkMousePosition() {
   // Check if mouse is actually on this monitor
   if (mouse_x < monitor_geometry.x || mouse_x >= monitor_geometry.x + monitor_geometry.width ||
       mouse_y < monitor_geometry.y || mouse_y >= monitor_geometry.y + monitor_geometry.height) {
-    spdlog::debug("Autohide: Mouse at ({},{}) not on monitor {} (geometry: x={}, y={}, w={}, h={})",
-                  mouse_x, mouse_y, bar_->output->name, monitor_geometry.x, monitor_geometry.y,
-                  monitor_geometry.width, monitor_geometry.height);
+    spdlog::debug("Autohide: Mouse at ({},{}) not on monitor (geometry: x={}, y={}, w={}, h={})",
+                  mouse_x, mouse_y, monitor_geometry.x, monitor_geometry.y, monitor_geometry.width,
+                  monitor_geometry.height);
     return;  // Mouse is not on this monitor, ignore
   }
 
@@ -185,37 +185,36 @@ void Autohide::checkMousePosition() {
       // This is the second consecutive show trigger
       if (waybar_state_ == WaybarState::HIDDEN) {
         spdlog::debug(
-            "Autohide: Mouse at y={} (<=1px) on monitor {} - second consecutive trigger, "
+            "Autohide: Mouse at y={} (<=1px) on monitor - second consecutive trigger, "
             "scheduling show",
-            monitor_mouse_y, bar_->output->name);
+            monitor_mouse_y);
         waybar_state_ = WaybarState::PENDING_VISIBLE;
         timer_start_ = std::chrono::steady_clock::now();
       } else if (waybar_state_ == WaybarState::PENDING_HIDDEN) {
         spdlog::debug(
-            "Autohide: Mouse at y={} (<=1px) on monitor {} - second consecutive trigger, canceling "
+            "Autohide: Mouse at y={} (<=1px) on monitor - second consecutive trigger, canceling "
             "hide, scheduling show",
-            monitor_mouse_y, bar_->output->name);
+            monitor_mouse_y);
         waybar_state_ = WaybarState::PENDING_VISIBLE;
         timer_start_ = std::chrono::steady_clock::now();
       }
     } else {
       // First show trigger - mark it but don't act yet
       spdlog::trace(
-          "Autohide: Mouse at y={} (<=1px) on monitor {} - first show trigger, waiting for second",
-          monitor_mouse_y, bar_->output->name);
+          "Autohide: Mouse at y={} (<=1px) on monitor - first show trigger, waiting for second",
+          monitor_mouse_y);
     }
     last_trigger_was_show_ = true;
   } else if (monitor_mouse_y > static_cast<int>(threshold_visible_y_)) {
     // Mouse below 50px - should hide waybar (only if currently visible)
     if (waybar_state_ == WaybarState::VISIBLE) {
-      spdlog::trace("Autohide: Mouse at y={} (>50px) on monitor {} - scheduling hide",
-                    monitor_mouse_y, bar_->output->name);
+      spdlog::trace("Autohide: Mouse at y={} (>50px) on monitor - scheduling hide",
+                    monitor_mouse_y);
       waybar_state_ = WaybarState::PENDING_HIDDEN;
       timer_start_ = std::chrono::steady_clock::now();
     } else if (waybar_state_ == WaybarState::PENDING_VISIBLE) {
-      spdlog::trace(
-          "Autohide: Mouse at y={} (>50px) on monitor {} - canceling show, scheduling hide",
-          monitor_mouse_y, bar_->output->name);
+      spdlog::trace("Autohide: Mouse at y={} (>50px) on monitor - canceling show, scheduling hide",
+                    monitor_mouse_y);
       waybar_state_ = WaybarState::PENDING_HIDDEN;
       timer_start_ = std::chrono::steady_clock::now();
     }
