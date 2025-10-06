@@ -23,8 +23,23 @@ class PthreadMutexLock {
 
 std::shared_ptr<waybar::modules::cava::CavaBackend> waybar::modules::cava::CavaBackend::inst(
     const Json::Value& config) {
-  static auto* backend = new CavaBackend(config);
-  static std::shared_ptr<CavaBackend> backend_ptr{backend};
+  static std::shared_ptr<CavaBackend> backend_ptr;
+  static Json::Value first_config;
+  static bool initialized = false;
+
+  if (!initialized) {
+    // First call - create the singleton
+    backend_ptr = std::make_shared<CavaBackend>(config);
+    first_config = config;
+    initialized = true;
+  } else {
+    // Subsequent calls - validate config matches
+    if (config != first_config) {
+      spdlog::warn(
+          "CavaBackend: Config differs from initial config. Only the first config is used.");
+    }
+  }
+
   return backend_ptr;
 }
 
