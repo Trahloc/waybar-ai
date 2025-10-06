@@ -2,6 +2,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <mutex>
+#include <string>
 #include <thread>
 
 #include "AModule.hpp"
@@ -54,6 +56,19 @@ class Autohide : public AModule, public waybar::modules::hyprland::EventHandler 
 
   // Consecutive show trigger counter
   uint32_t consecutive_show_triggers_ = 0;
+
+  // Cached monitor data (updated on main thread, read on background thread)
+  struct MonitorCache {
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    std::string name;
+    bool valid = false;
+  };
+
+  mutable std::mutex monitor_cache_mutex_;
+  MonitorCache cached_monitor_;
 };
 
 }  // namespace waybar::modules

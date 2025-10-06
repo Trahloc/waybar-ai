@@ -41,6 +41,12 @@ Autohide::Autohide(const std::string& id, const Bar& bar, const Json::Value& con
       threshold_hidden_y_, threshold_visible_y_, delay_show_, delay_hide_, check_interval_,
       consecutive_checks_before_visible_);
 
+  // Initialize cached monitor data (will be updated in update() method)
+  {
+    std::lock_guard<std::mutex> lock(monitor_cache_mutex_);
+    cached_monitor_.valid = false;
+  }
+
   // Register for workspace events - the IPC system will handle the registration
   // even if it's not ready yet (it will queue the registration)
   spdlog::info("Autohide: Registering for workspace events");
@@ -105,25 +111,31 @@ void Autohide::checkMousePosition() {
     return;  // Failed to get mouse position
   }
 
-  // Get monitor geometry to check if mouse is on this monitor
-  if (!bar_ || !bar_->output || !bar_->output->monitor) {
-    spdlog::debug("Autohide: No bar, output, or monitor available");
+  // Get cached monitor data (thread-safe, no GTK access)
+  MonitorCache monitor_cache;
+  bool cache_valid = false;
+  {
+    std::lock_guard<std::mutex> lock(monitor_cache_mutex_);
+    monitor_cache = cached_monitor_;
+    cache_valid = monitor_cache.valid;
+  }
+
+  if (!cache_valid) {
+    spdlog::debug("Autohide: No valid monitor cache available");
     return;
   }
 
-  auto monitor_geometry = *bar_->output->monitor->property_geometry().get_value().gobj();
-
   // Check if mouse is actually on this monitor
-  if (mouse_x < monitor_geometry.x || mouse_x >= monitor_geometry.x + monitor_geometry.width ||
-      mouse_y < monitor_geometry.y || mouse_y >= monitor_geometry.y + monitor_geometry.height) {
+  if (mouse_x < monitor_cache.x || mouse_x >= monitor_cache.x + monitor_cache.width ||
+      mouse_y < monitor_cache.y || mouse_y >= monitor_cache.y + monitor_cache.height) {
     spdlog::debug("Autohide: Mouse at ({},{}) not on monitor {} (geometry: x={}, y={}, w={}, h={})",
-                  mouse_x, mouse_y, bar_->output->name, monitor_geometry.x, monitor_geometry.y,
-                  monitor_geometry.width, monitor_geometry.height);
+                  mouse_x, mouse_y, monitor_cache.name, monitor_cache.x, monitor_cache.y,
+                  monitor_cache.width, monitor_cache.height);
     return;  // Mouse is not on this monitor, ignore
   }
 
   // Convert to monitor-relative coordinates
-  int monitor_mouse_y = mouse_y - monitor_geometry.y;
+  int monitor_mouse_y = mouse_y - monitor_cache.y;
 
   // Log mouse position changes (trace level to avoid spam)
   spdlog::trace("Autohide: Mouse at screen ({},{}) -> monitor y={}, state={}", mouse_x, mouse_y,
@@ -234,6 +246,24 @@ void Autohide::update() {
   if (!bar_) {
     spdlog::warn("Autohide: Bar pointer is null, cannot update visibility");
     return;
+  }
+
+  // Cache monitor data on main thread for background thread to use safely
+  {
+    std::lock_guard<std::mutex> lock(monitor_cache_mutex_);
+    if (bar_->output && bar_->output->monitor) {
+      auto monitor_geometry = *bar_->output->monitor->property_geometry().get_value().gobj();
+
+      cached_monitor_.x = monitor_geometry.x;
+      cached_monitor_.y = monitor_geometry.y;
+      cached_monitor_.width = monitor_geometry.width;
+      cached_monitor_.height = monitor_geometry.height;
+      cached_monitor_.name = bar_->output->name;
+      cached_monitor_.valid = true;
+    } else {
+      // Clear cache if monitor is not available
+      cached_monitor_.valid = false;
+    }
   }
 
   switch (waybar_state_.load()) {
