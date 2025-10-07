@@ -9,7 +9,15 @@ namespace {
 // RAII wrapper for pthread_mutex_t to provide exception safety
 class PthreadMutexLock {
  public:
-  explicit PthreadMutexLock(pthread_mutex_t* mutex) : mutex_(mutex) { pthread_mutex_lock(mutex_); }
+  explicit PthreadMutexLock(pthread_mutex_t* mutex) : mutex_(mutex) {
+    if (!mutex_) {
+      throw std::invalid_argument("Mutex pointer is null");
+    }
+    int result = pthread_mutex_lock(mutex_);
+    if (result != 0) {
+      throw std::runtime_error("Failed to lock mutex: " + std::to_string(result));
+    }
+  }
 
   ~PthreadMutexLock() { pthread_mutex_unlock(mutex_); }
 

@@ -24,13 +24,12 @@ extern "C" {
 }  // namespace cava
 
 namespace waybar::modules::cava {
-using namespace std::literals::chrono_literals;
 
 class CavaBackend final {
  public:
   static std::shared_ptr<CavaBackend> inst(const Json::Value& config);
 
-  virtual ~CavaBackend();
+  ~CavaBackend();
   // Methods
   int getAsciiRange();
   void doPauseResume();

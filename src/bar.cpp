@@ -2,6 +2,9 @@
 
 #include <gtk-layer-shell.h>
 #include <spdlog/spdlog.h>
+#ifdef GDK_WINDOWING_WAYLAND
+#include <gdk/gdkwayland.h>
+#endif
 
 #include <type_traits>
 
